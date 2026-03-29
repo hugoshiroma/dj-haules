@@ -154,11 +154,12 @@ def ensure_spotify_playing(sp, config):
             print(f"Dispositivo Spotify '{device_name}' não encontrado. Certifique-se que o raspotify está ativo.")
             return
 
-        # 3. Iniciar a playlist comunitária com shuffle e repeat
+        # 3. Iniciar a playlist comunitária e habilitar shuffle e repeat
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
+        sp.start_playback(device_id=target_device_id, context_uri=playlist_uri)
+        time.sleep(2)
         sp.shuffle(True, device_id=target_device_id)
         sp.repeat('context', device_id=target_device_id)
-        sp.start_playback(device_id=target_device_id, context_uri=playlist_uri)
         print("Playlist iniciada com sucesso!")
 
     except Exception as e:
