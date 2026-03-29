@@ -213,7 +213,7 @@
   <p class="section-title">Adicionar Nova Caixa</p>
   <div class="scan-section">
     <button class="btn-scan" id="scan-btn" onclick="startScan()">
-      Escanear Bluetooth (~8s)
+      Escanear Bluetooth (~15s)
     </button>
     <div id="scan-status"></div>
     <div id="scan-results"></div>
@@ -227,7 +227,7 @@
 
       btn.disabled = true;
       results.innerHTML = '';
-      status.innerHTML = '<span class="spinner"></span>Escaneando dispositivos próximos...';
+      status.innerHTML = '<span class="spinner"></span>Escaneando dispositivos próximos (~15s)...';
 
       try {
         const res = await fetch('/api/scan', { method: 'POST' });

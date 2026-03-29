@@ -83,7 +83,7 @@ def api_scan():
                 ['bluetoothctl', 'scan', 'on'],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
             )
-            time.sleep(8)
+            time.sleep(15)
             scan_proc.terminate()
             scan_proc.wait(timeout=3)
         except Exception:
@@ -93,14 +93,17 @@ def api_scan():
             output = subprocess.check_output(
                 ['bluetoothctl', 'devices'], text=True, timeout=5
             )
+            mac_pattern = re.compile(r'^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$')
             devices = []
             for line in output.strip().split('\n'):
                 match = re.match(r'Device\s+([0-9A-Fa-f:]{17})\s+(.+)', line)
                 if match:
-                    devices.append({
-                        'mac': match.group(1).upper(),
-                        'name': match.group(2).strip()
-                    })
+                    mac = match.group(1).upper()
+                    name = match.group(2).strip()
+                    # Ignora entradas sem nome resolvido (nome é apenas o MAC)
+                    if mac_pattern.match(name):
+                        continue
+                    devices.append({'mac': mac, 'name': name})
             return jsonify({'ok': True, 'devices': devices})
         except Exception as e:
             return jsonify({'ok': False, 'error': str(e), 'devices': []})
