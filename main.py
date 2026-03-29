@@ -158,8 +158,8 @@ def ensure_spotify_playing(sp, config):
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
         sp.start_playback(device_id=target_device_id, context_uri=playlist_uri)
         time.sleep(2)
-        sp.shuffle(True, device_id=target_device_id)
-        sp.repeat('context', device_id=target_device_id)
+        sp.shuffle(True)
+        sp.repeat('context')
         print("Playlist iniciada com sucesso!")
 
     except Exception as e:
