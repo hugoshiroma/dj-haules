@@ -157,10 +157,13 @@ def ensure_spotify_playing(sp, config):
         # 3. Iniciar a playlist comunitária e habilitar shuffle e repeat
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
         sp.start_playback(device_id=target_device_id, context_uri=playlist_uri)
-        time.sleep(2)
-        sp.shuffle(True)
-        sp.repeat('context')
         print("Playlist iniciada com sucesso!")
+        try:
+            time.sleep(5)
+            sp.shuffle(True)
+            sp.repeat('context')
+        except Exception:
+            pass  # shuffle/repeat são opcionais — não interrompem o fluxo
 
     except Exception as e:
         print(f"Erro ao verificar/iniciar reprodução no Spotify: {e}")
