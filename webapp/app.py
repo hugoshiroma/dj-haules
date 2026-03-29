@@ -76,16 +76,24 @@ def remove_speaker():
 
 @app.route('/api/scan', methods=['POST'])
 def api_scan():
-    """Escaneia dispositivos Bluetooth próximos por 8 segundos."""
+    """Escaneia dispositivos Bluetooth próximos por 15 segundos."""
     with bt_lock:
         try:
+            # Modo interativo via stdin — mantém o scan ativo igual ao terminal manual
             scan_proc = subprocess.Popen(
-                ['bluetoothctl', 'scan', 'on'],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                ['bluetoothctl'],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True
             )
+            scan_proc.stdin.write('scan on\n')
+            scan_proc.stdin.flush()
             time.sleep(15)
-            scan_proc.terminate()
-            scan_proc.wait(timeout=3)
+            scan_proc.stdin.write('scan off\n')
+            scan_proc.stdin.write('exit\n')
+            scan_proc.stdin.flush()
+            scan_proc.wait(timeout=5)
         except Exception:
             pass
 
