@@ -76,3 +76,18 @@ Se a senha (ou o nome) da rede Wi-Fi do bar foi alterada, o DJ Haules vai perder
 6. Aguarde uns 30 segundos. O DJ Haules vai se conectar à nova rede e a música voltará a tocar automaticamente.
 
 > **Importante:** Depois de salvar, você pode reconectar seu celular ao Wi-Fi normal do bar.
+
+---
+
+## Para o Responsável Técnico
+
+- **Repositório:** https://github.com/hugoshiroma/dj-haules
+- **Guia de instalação e setup:** [`docs/INSTALL_GUIDE_FOR_DEV.md`](docs/INSTALL_GUIDE_FOR_DEV.md)
+
+Para atualizar o sistema no Raspberry Pi:
+```bash
+cd ~/dj-haules
+sudo systemctl stop djhaules.service
+git pull
+sudo systemctl start djhaules.service
+```

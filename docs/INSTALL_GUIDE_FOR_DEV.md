@@ -53,11 +53,15 @@ sudo reboot
 
 ## 3. Configurando o Projeto
 
-1.  **Copie os arquivos:** Transfira o conteúdo da pasta `dj-haules` do seu PC para o diretório `/home/seu_usuario/dj-haules` no Raspberry Pi. Você pode usar um cliente SFTP como o FileZilla ou o comando `scp`.
+1.  **Instale o Git e clone o repositório:**
+    ```bash
+    sudo apt install -y git
+    git clone https://github.com/hugoshiroma/dj-haules.git /home/$USER/dj-haules
+    cd /home/$USER/dj-haules
+    ```
 
 2.  **Crie o Ambiente Virtual Python:**
     ```bash
-    cd /home/seu_usuario/dj-haules
     python3 -m venv .venv
     source .venv/bin/activate
     ```
@@ -73,7 +77,10 @@ sudo reboot
         cp config/settings.ini.template config/settings.ini
         cp config/speakers.json.template config/speakers.json
         ```
-    *   Edite o `config/settings.ini` com a URL e Chave Anônima (ANON_KEY) do Supabase e o URI da playlist Spotify (`PLAYLIST_URI`).
+    *   Edite o `config/settings.ini` com a URL e Chave Anônima (ANON_KEY) do Supabase e o URI da playlist Spotify (`PLAYLIST_URI`):
+        ```bash
+        nano config/settings.ini
+        ```
     *   **As caixas de som são configuradas pela interface web** — não é necessário editar o `speakers.json` manualmente. Veja a seção 4.1 abaixo.
 
 ---
@@ -169,41 +176,56 @@ Este passo instala o monitor de Wi-Fi, que cria automaticamente um hotspot de re
 
 ## 6. Rodando como um Serviço (Automático)
 
-Para que o DJ Haules inicie com o Pi, vamos criar um serviço.
+Para que o DJ Haules inicie com o Pi, vamos criar um serviço systemd.
 
-1.  **Crie o arquivo de serviço:**
+1.  **Crie o arquivo de serviço** (substitua `seu_usuario` pelo seu usuário real):
     ```bash
-    sudo nano /etc/systemd/system/djhaules.service
-    ```
-
-2.  **Cole o seguinte conteúdo dentro do arquivo.** (Lembre-se de substituir `seu_usuario` pelo seu nome de usuário no Pi).
-
-    ```ini
+    sudo bash -c "cat > /etc/systemd/system/djhaules.service" << EOF
     [Unit]
     Description=DJ Haules Service
     After=network.target sound.target bluetooth.target
 
     [Service]
-    User=seu_usuario
-    Group=seu_usuario
-    WorkingDirectory=/home/seu_usuario/dj-haules
-    ExecStart=/home/seu_usuario/dj-haules/.venv/bin/python /home/seu_usuario/dj-haules/main.py
+    User=$USER
+    Group=$USER
+    WorkingDirectory=/home/$USER/dj-haules
+    ExecStart=/home/$USER/dj-haules/.venv/bin/python /home/$USER/dj-haules/main.py
     Restart=always
     RestartSec=10
 
     [Install]
     WantedBy=multi-user.target
+    EOF
     ```
 
-3.  **Habilite e inicie o serviço:**
+2.  **Habilite e inicie o serviço:**
     ```bash
+    sudo systemctl daemon-reload
     sudo systemctl enable djhaules.service
     sudo systemctl start djhaules.service
     ```
 
-4.  **Verifique o status** para ver se está tudo rodando:
+3.  **Verifique o status** para ver se está tudo rodando:
     ```bash
     sudo systemctl status djhaules.service
     ```
 
 Pronto! O DJ Haules agora está configurado para iniciar e rodar automaticamente.
+
+---
+
+## 7. Atualizando o Projeto
+
+Para puxar uma nova versão do código sem precisar reconfigurar nada:
+
+```bash
+cd /home/$USER/dj-haules
+
+# Para o serviço, atualize e reinicie
+sudo systemctl stop djhaules.service
+git pull
+source .venv/bin/activate && pip install -r requirements.txt
+sudo systemctl start djhaules.service
+```
+
+> O `config/settings.ini` **não é sobrescrito** pelo `git pull` — suas credenciais ficam preservadas.
