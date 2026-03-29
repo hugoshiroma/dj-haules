@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wi-Fi — DJ Haules</title>
+  <style>
+    :root {
+      --bg:      #0a0a0a;
+      --surface: #161616;
+      --accent:  #ffaa00;
+      --text:    #ffffff;
+      --muted:   #777777;
+      --border:  #2a2a2a;
+      --danger:  #cc3333;
+      --ok:      #44aa44;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .header img { width: 32px; height: 32px; object-fit: contain; opacity: 0.9; }
+    .header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); flex: 1; }
+    .back-link { font-size: 0.8rem; color: var(--muted); text-decoration: none; }
+    .back-link:hover { color: var(--text); }
+
+    /* Section titles */
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    /* Status card */
+    .status-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .status-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+    }
+    .status-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.2rem; }
+    .status-value { font-size: 0.95rem; font-weight: 600; }
+    .status-value.connected { color: var(--ok); }
+    .status-value.hotspot   { color: var(--accent); }
+    .status-value.offline   { color: var(--danger); }
+
+    /* Hotspot notice */
+    .hotspot-notice {
+      background: #1a1500;
+      border: 1px solid #554400;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: #ddbb55;
+    }
+    .hotspot-notice strong { color: var(--accent); }
+
+    /* Form */
+    .form-group { margin-bottom: 1.25rem; }
+    label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.4rem; }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      padding: 0.7rem 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .password-wrap { position: relative; }
+    .toggle-pass {
+      position: absolute;
+      right: 0.75rem;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.3rem;
+    }
+    .toggle-pass:hover { color: var(--text); }
+
+    /* Buttons */
+    .btn-primary {
+      width: 100%;
+      padding: 0.85rem;
+      background: var(--accent);
+      color: #0a0a0a;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-primary:hover   { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Spinner */
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid rgba(0,0,0,0.3);
+      border-top-color: #0a0a0a;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Messages */
+    .msg { font-size: 0.82rem; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; line-height: 1.5; }
+    .msg.ok  { background: #0f1f0f; border: 1px solid #2a5a2a; color: #77cc77; }
+    .msg.err { background: #1f0f0f; border: 1px solid #5a2a2a; color: #cc7777; }
+    .msg.info { background: #131008; border: 1px solid #4a3a00; color: #ccaa44; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <img src="/static/logo.png" alt="Haules">
+    <h1>Configurar Wi-Fi</h1>
+    <a href="/" class="back-link">← Voltar</a>
+  </div>
+
+  <!-- Status atual -->
+  <p class="section-title">Status da Conexão</p>
+  <div class="status-card" id="status-card">
+    <div class="status-icon" id="status-icon">⏳</div>
+    <div>
+      <div class="status-label">Rede</div>
+      <div class="status-value" id="status-value">Verificando...</div>
+    </div>
+  </div>
+
+  <!-- Aviso modo hotspot -->
+  <div class="hotspot-notice" id="hotspot-notice" style="display:none">
+    <strong>Modo de Recuperação Ativo</strong><br>
+    O DJ Haules está sem internet e criou uma rede Wi-Fi temporária para que você possa reconfigurar.<br><br>
+    Você está conectado ao hotspot <strong>"DJHaules-Config"</strong>.<br>
+    Preencha abaixo com os dados da nova rede do bar e clique em <strong>Salvar e Reconectar</strong>.
+  </div>
+
+  <!-- Formulário de nova rede -->
+  <p class="section-title">Nova Rede Wi-Fi</p>
+  <div class="form-group">
+    <label for="ssid">Nome da Rede (SSID)</label>
+    <input type="text" id="ssid" placeholder="Ex: Bar do Haules 5G" maxlength="32" autocomplete="off" autocorrect="off" spellcheck="false">
+  </div>
+  <div class="form-group">
+    <label for="password">Senha da Rede</label>
+    <div class="password-wrap">
+      <input type="password" id="password" placeholder="Mínimo 8 caracteres" maxlength="63" autocomplete="new-password">
+      <button type="button" class="toggle-pass" onclick="togglePass()">mostrar</button>
+    </div>
+  </div>
+
+  <button class="btn-primary" id="save-btn" onclick="saveWifi()">Salvar e Reconectar</button>
+  <div id="save-msg"></div>
+
+  <script>
+    async function loadStatus() {
+      try {
+        const res = await fetch('/api/wifi/status');
+        const data = await res.json();
+
+        const icon  = document.getElementById('status-icon');
+        const value = document.getElementById('status-value');
+        const notice = document.getElementById('hotspot-notice');
+
+        if (!data.ok) {
+          icon.textContent = '❓';
+          value.textContent = 'Não foi possível verificar';
+          value.className = 'status-value offline';
+          return;
+        }
+
+        if (data.internet && data.ssid) {
+          icon.textContent = '✅';
+          value.textContent = data.ssid;
+          value.className = 'status-value connected';
+        } else if (data.hotspot) {
+          icon.textContent = '📡';
+          value.textContent = 'Modo Recuperação (sem internet)';
+          value.className = 'status-value hotspot';
+          notice.style.display = 'block';
+        } else {
+          icon.textContent = '❌';
+          value.textContent = data.ssid ? `${data.ssid} (sem internet)` : 'Sem conexão';
+          value.className = 'status-value offline';
+        }
+      } catch (e) {
+        document.getElementById('status-value').textContent = 'Erro ao verificar status';
+      }
+    }
+
+    async function saveWifi() {
+      const ssid     = document.getElementById('ssid').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const btn      = document.getElementById('save-btn');
+      const msg      = document.getElementById('save-msg');
+
+      if (!ssid) {
+        msg.innerHTML = '<div class="msg err">Informe o nome da rede (SSID).</div>';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Salvando...';
+      msg.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/wifi/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ssid, password })
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          msg.innerHTML = `
+            <div class="msg ok">
+              ✓ Credenciais salvas! O DJ Haules está tentando conectar à rede "<strong>${ssid}</strong>".<br><br>
+              Aguarde até 30 segundos. Se a conexão for bem-sucedida, o hotspot será desativado automaticamente
+              e a música voltará a tocar.
+            </div>`;
+          btn.textContent = 'Salvo!';
+          setTimeout(loadStatus, 10000);
+          setTimeout(loadStatus, 25000);
+        } else {
+          msg.innerHTML = `<div class="msg err">Erro: ${data.error}</div>`;
+          btn.disabled = false;
+          btn.textContent = 'Salvar e Reconectar';
+        }
+      } catch (e) {
+        msg.innerHTML = '<div class="msg err">Erro de comunicação. Tente novamente.</div>';
+        btn.disabled = false;
+        btn.textContent = 'Salvar e Reconectar';
+      }
+    }
+
+    function togglePass() {
+      const input = document.getElementById('password');
+      const btn   = document.querySelector('.toggle-pass');
+      if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'ocultar';
+      } else {
+        input.type = 'password';
+        btn.textContent = 'mostrar';
+      }
+    }
+
+    // Carrega status ao abrir a página
+    loadStatus();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+[Unit]
+Description=DJ Haules Wi-Fi Monitor
+# Inicia após o NetworkManager estar pronto para receber comandos
+After=NetworkManager.service network.target
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+# Substitua "seu_usuario" pelo seu usuário real no Raspberry Pi
+ExecStart=/home/seu_usuario/dj-haules/scripts/wifi_monitor.sh
+Restart=always
+RestartSec=10
+# Permite que o script use nmcli com permissões adequadas
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Caixas de Som — DJ Haules</title>
+  <style>
+    :root {
+      --bg:      #0a0a0a;
+      --surface: #161616;
+      --accent:  #ffaa00;
+      --text:    #ffffff;
+      --muted:   #777777;
+      --border:  #2a2a2a;
+      --danger:  #cc3333;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .header img { width: 32px; height: 32px; object-fit: contain; opacity: 0.9; }
+    .header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); flex: 1; }
+    .back-link {
+      font-size: 0.8rem;
+      color: var(--muted);
+      text-decoration: none;
+    }
+    .back-link:hover { color: var(--text); }
+
+    /* Section titles */
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    /* Speaker cards */
+    .speakers-list { margin-bottom: 2rem; }
+    .speaker-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .speaker-card:first-child { border-color: var(--accent); }
+    .speaker-info { flex: 1; overflow: hidden; }
+    .speaker-name {
+      font-size: 0.9rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .speaker-mac { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
+    .priority-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      text-transform: uppercase;
+    }
+    .btn-remove {
+      font-size: 0.75rem;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .btn-remove:hover { color: var(--danger); border-color: var(--danger); }
+
+    .empty-state {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 1.5rem 0;
+    }
+
+    /* Scan section */
+    .scan-section { margin-bottom: 1.5rem; }
+    .btn-scan {
+      width: 100%;
+      padding: 0.85rem;
+      background: var(--accent);
+      color: #0a0a0a;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-scan:hover { opacity: 0.85; }
+    .btn-scan:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Scan status */
+    #scan-status {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.75rem;
+      min-height: 1.2em;
+    }
+    .spinner {
+      display: inline-block;
+      width: 12px; height: 12px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Discovered devices */
+    #scan-results { margin-top: 1rem; }
+    .device-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .device-info { flex: 1; overflow: hidden; }
+    .device-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .device-mac { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+    .btn-pair {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: transparent;
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      padding: 0.35rem 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .btn-pair:hover { background: var(--accent); color: #0a0a0a; }
+    .btn-pair:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .msg { font-size: 0.8rem; margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 6px; }
+    .msg.ok  { background: #1a2a1a; color: #66cc66; }
+    .msg.err { background: #2a1a1a; color: #cc6666; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <img src="/static/logo.png" alt="Haules">
+    <h1>Caixas de Som</h1>
+    <a href="/" class="back-link">← Voltar</a>
+  </div>
+
+  <!-- Caixas salvas -->
+  <p class="section-title">Caixas Salvas</p>
+  <div class="speakers-list">
+    {% if speakers %}
+      {% for speaker in speakers %}
+      <div class="speaker-card">
+        <div class="speaker-info">
+          <div class="speaker-name">{{ speaker.name }}</div>
+          <div class="speaker-mac">{{ speaker.mac }}</div>
+        </div>
+        {% if loop.first %}
+          <span class="priority-badge">Principal</span>
+        {% endif %}
+        <form method="post" action="/speakers/remove" style="margin:0">
+          <input type="hidden" name="mac" value="{{ speaker.mac }}">
+          <button type="submit" class="btn-remove">Remover</button>
+        </form>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-state">Nenhuma caixa salva.<br>Escaneie abaixo para adicionar a primeira.</p>
+    {% endif %}
+  </div>
+
+  <!-- Scan -->
+  <p class="section-title">Adicionar Nova Caixa</p>
+  <div class="scan-section">
+    <button class="btn-scan" id="scan-btn" onclick="startScan()">
+      Escanear Bluetooth (~8s)
+    </button>
+    <div id="scan-status"></div>
+    <div id="scan-results"></div>
+  </div>
+
+  <script>
+    async function startScan() {
+      const btn = document.getElementById('scan-btn');
+      const status = document.getElementById('scan-status');
+      const results = document.getElementById('scan-results');
+
+      btn.disabled = true;
+      results.innerHTML = '';
+      status.innerHTML = '<span class="spinner"></span>Escaneando dispositivos próximos...';
+
+      try {
+        const res = await fetch('/api/scan', { method: 'POST' });
+        const data = await res.json();
+
+        status.innerHTML = '';
+
+        if (!data.ok || !data.devices.length) {
+          status.innerHTML = 'Nenhum dispositivo encontrado. Verifique se a caixa está ligada e em modo de pareamento.';
+        } else {
+          results.innerHTML = data.devices.map(d => `
+            <div class="device-card" id="card-${d.mac.replace(/:/g,'_')}">
+              <div class="device-info">
+                <div class="device-name">${d.name}</div>
+                <div class="device-mac">${d.mac}</div>
+              </div>
+              <button class="btn-pair" id="pair-${d.mac.replace(/:/g,'_')}"
+                onclick="pairDevice('${d.mac}', '${d.name.replace(/'/g,"\\'")}')">
+                Conectar e Salvar
+              </button>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        status.innerHTML = 'Erro ao escanear. Tente novamente.';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    async function pairDevice(mac, name) {
+      const id = mac.replace(/:/g, '_');
+      const btn = document.getElementById('pair-' + id);
+      const card = document.getElementById('card-' + id);
+
+      btn.disabled = true;
+      btn.textContent = 'Conectando...';
+
+      try {
+        const res = await fetch('/api/pair', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac, name })
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          card.insertAdjacentHTML('afterend',
+            `<div class="msg ok">✓ "${name}" salva como caixa principal. Recarregando...</div>`
+          );
+          setTimeout(() => location.reload(), 1500);
+        } else {
+          card.insertAdjacentHTML('afterend',
+            `<div class="msg err">Erro: ${data.error}</div>`
+          );
+          btn.disabled = false;
+          btn.textContent = 'Conectar e Salvar';
+        }
+      } catch (e) {
+        card.insertAdjacentHTML('afterend',
+          `<div class="msg err">Erro de comunicação. Tente novamente.</div>`
+        );
+        btn.disabled = false;
+        btn.textContent = 'Conectar e Salvar';
+      }
+    }
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Força LF em todos os arquivos de texto (necessário para scripts rodarem no Linux)
+* text=auto eol=lf
+
+# Binários — sem conversão
+*.png binary

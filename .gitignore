@@ -1,0 +1,16 @@
+# Configuração real (contém segredos — use os arquivos .template)
+config/settings.ini
+config/speakers.json
+config/state.txt
+
+# Ambiente virtual Python
+.venv/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
