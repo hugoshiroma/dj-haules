@@ -199,13 +199,13 @@ def api_wifi_save():
     try:
         # Remove perfil anterior para evitar conflito
         subprocess.run(
-            ['nmcli', 'con', 'delete', WIFI_CON_NAME],
+            ['sudo', 'nmcli', 'con', 'delete', WIFI_CON_NAME],
             capture_output=True, timeout=10
         )
 
         # Cria novo perfil (sem ifname para não conflitar com hotspot ativo)
         cmd = [
-            'nmcli', 'con', 'add',
+            'sudo', 'nmcli', 'con', 'add',
             'type', 'wifi',
             'con-name', WIFI_CON_NAME,
             'ssid', ssid,
@@ -219,7 +219,7 @@ def api_wifi_save():
             return jsonify({'ok': False, 'error': result.stderr.strip() or 'Erro ao salvar configuração de rede.'})
 
         # Tenta conectar em background (o wifi_monitor vai confirmar em até 30s)
-        subprocess.Popen(['nmcli', 'con', 'up', WIFI_CON_NAME])
+        subprocess.Popen(['sudo', 'nmcli', 'con', 'up', WIFI_CON_NAME])
 
         return jsonify({'ok': True})
     except Exception as e:
