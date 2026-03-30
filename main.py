@@ -1,6 +1,7 @@
 
 import json
 import os
+import random
 import time
 import threading
 import subprocess
@@ -154,9 +155,16 @@ def ensure_spotify_playing(sp, config):
             print(f"Dispositivo Spotify '{device_name}' não encontrado. Certifique-se que o raspotify está ativo.")
             return
 
-        # 3. Iniciar a playlist comunitária e habilitar shuffle e repeat
+        # 3. Iniciar a playlist comunitária em posição aleatória
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
-        sp.start_playback(device_id=target_device_id, context_uri=playlist_uri)
+        try:
+            playlist_id = playlist_uri.split(':')[-1]
+            total = sp.playlist(playlist_id, fields='tracks.total')['tracks']['total']
+            offset = random.randint(0, max(0, total - 1))
+        except Exception:
+            offset = 0
+        sp.start_playback(device_id=target_device_id, context_uri=playlist_uri,
+                          offset={'position': offset})
         print("Playlist iniciada com sucesso!")
         try:
             time.sleep(5)
