@@ -203,11 +203,10 @@ def api_wifi_save():
             capture_output=True, timeout=10
         )
 
-        # Cria novo perfil
+        # Cria novo perfil (sem ifname para não conflitar com hotspot ativo)
         cmd = [
             'nmcli', 'con', 'add',
             'type', 'wifi',
-            'ifname', 'wlan0',
             'con-name', WIFI_CON_NAME,
             'ssid', ssid,
             'connection.autoconnect', 'yes',
@@ -215,14 +214,14 @@ def api_wifi_save():
         if password:
             cmd += ['wifi-sec.key-mgmt', 'wpa-psk', 'wifi-sec.psk', password]
 
-        subprocess.run(cmd, capture_output=True, timeout=10, check=True)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            return jsonify({'ok': False, 'error': result.stderr.strip() or 'Erro ao salvar configuração de rede.'})
 
         # Tenta conectar em background (o wifi_monitor vai confirmar em até 30s)
         subprocess.Popen(['nmcli', 'con', 'up', WIFI_CON_NAME])
 
         return jsonify({'ok': True})
-    except subprocess.CalledProcessError:
-        return jsonify({'ok': False, 'error': 'Erro ao salvar configuração de rede. Verifique o SSID e a senha.'})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)})
 
