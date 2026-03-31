@@ -266,6 +266,10 @@
       btn.disabled = true;
       btn.textContent = 'Conectando...';
 
+      // Remove mensagens anteriores deste card
+      const prev = document.getElementById('msg-' + id);
+      if (prev) prev.remove();
+
       try {
         const res = await fetch('/api/pair', {
           method: 'POST',
@@ -276,19 +280,19 @@
 
         if (data.ok) {
           card.insertAdjacentHTML('afterend',
-            `<div class="msg ok">✓ "${name}" salva como caixa principal. Recarregando...</div>`
+            `<div id="msg-${id}" class="msg ok">✓ "${name}" salva como caixa principal. Recarregando...</div>`
           );
           setTimeout(() => location.reload(), 1500);
         } else {
           card.insertAdjacentHTML('afterend',
-            `<div class="msg err">Erro: ${data.error}</div>`
+            `<div id="msg-${id}" class="msg err">Erro: ${data.error}</div>`
           );
           btn.disabled = false;
           btn.textContent = 'Conectar e Salvar';
         }
       } catch (e) {
         card.insertAdjacentHTML('afterend',
-          `<div class="msg err">Erro de comunicação. Tente novamente.</div>`
+          `<div id="msg-${id}" class="msg err">Erro de comunicação. Tente novamente.</div>`
         );
         btn.disabled = false;
         btn.textContent = 'Conectar e Salvar';

@@ -117,6 +117,15 @@ def api_scan():
             return jsonify({'ok': False, 'error': str(e), 'devices': []})
 
 
+def is_already_paired(mac):
+    """Verifica se o dispositivo já está paired no Pi."""
+    try:
+        output = subprocess.check_output(['bluetoothctl', 'info', mac], text=True, timeout=5)
+        return "Paired: yes" in output
+    except Exception:
+        return False
+
+
 @app.route('/api/pair', methods=['POST'])
 def api_pair():
     """Faz pair + trust + connect num dispositivo e salva como caixa principal."""
@@ -128,7 +137,9 @@ def api_pair():
         return jsonify({'ok': False, 'error': 'MAC address inválido'})
 
     with bt_lock:
-        for cmd in ['pair', 'trust', 'connect']:
+        already_paired = is_already_paired(mac)
+        cmds = ['trust', 'connect'] if already_paired else ['pair', 'trust', 'connect']
+        for cmd in cmds:
             try:
                 subprocess.run(
                     ['bluetoothctl', cmd, mac],

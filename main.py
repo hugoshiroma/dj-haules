@@ -159,19 +159,26 @@ def ensure_spotify_playing(sp, config):
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
         try:
             playlist_id = playlist_uri.split(':')[-1]
-            total = sp.playlist(playlist_id, fields='tracks.total')['tracks']['total']
+            total = sp.playlist(playlist_id)['tracks']['total']
             offset = random.randint(0, max(0, total - 1))
-        except Exception:
+            print(f"Posição aleatória escolhida: {offset}/{total}")
+        except Exception as e:
+            print(f"Aviso: não foi possível obter total de músicas ({e}). Iniciando do começo.")
             offset = 0
         sp.start_playback(device_id=target_device_id, context_uri=playlist_uri,
                           offset={'position': offset})
         print("Playlist iniciada com sucesso!")
         try:
-            time.sleep(5)
-            sp.shuffle(True)
-            sp.repeat('context')
-        except Exception:
-            pass  # shuffle/repeat são opcionais — não interrompem o fluxo
+            time.sleep(2)
+            sp.volume(50, device_id=target_device_id)
+        except Exception as e:
+            print(f"Aviso: não foi possível ajustar volume ({e}).")
+        try:
+            time.sleep(3)
+            sp.shuffle(True, device_id=target_device_id)
+            sp.repeat('context', device_id=target_device_id)
+        except Exception as e:
+            print(f"Aviso: não foi possível configurar shuffle/repeat ({e}).")
 
     except Exception as e:
         print(f"Erro ao verificar/iniciar reprodução no Spotify: {e}")
@@ -226,7 +233,9 @@ def main():
                         sp = None
                         continue
             else:
-                print("Não foi possível conectar a nenhuma caixa. Tentando novamente em breve...")
+                print("Não foi possível conectar a nenhuma caixa. Tentando novamente em 10 segundos...")
+                time.sleep(10)
+                continue
 
         else:  # current_state == 'DISABLED'
             disconnect_all_speakers(speakers)
