@@ -222,6 +222,7 @@ ExecStartPre=/usr/sbin/rfkill unblock bluetooth
 ExecStart=/home/$USER/dj-haules/.venv/bin/python /home/$USER/dj-haules/main.py
 Restart=always
 RestartSec=10
+Environment=PYTHONUNBUFFERED=1
 
 [Install]
 WantedBy=multi-user.target

@@ -207,7 +207,20 @@ def main():
             continue
 
         if current_state == 'ENABLED':
-            # Garante que o cliente Spotify esteja pronto
+            # 1. Bluetooth primeiro — independente do Spotify
+            if connected_mac and not is_bluetooth_connected(connected_mac):
+                print(f"Caixa {connected_mac} desconectou. Tentando reconectar ou buscar outra...")
+                connected_mac = None
+
+            if not connected_mac:
+                connected_mac = connect_to_best_speaker(speakers)
+
+            if not connected_mac:
+                print("Não foi possível conectar a nenhuma caixa. Tentando novamente em 10 segundos...")
+                time.sleep(10)
+                continue
+
+            # 2. Spotify — só tenta se Bluetooth estiver conectado
             if not sp:
                 print("Cliente Spotify não inicializado. Tentando criar...")
                 sp = create_spotify_client(config)
@@ -216,26 +229,13 @@ def main():
                     time.sleep(30)
                     continue
 
-            # Verifica se a caixa conectada ainda está ativa; se não, tenta outra
-            if connected_mac and not is_bluetooth_connected(connected_mac):
-                print(f"Caixa {connected_mac} desconectou. Tentando reconectar ou buscar outra...")
-                connected_mac = None
-
-            if not connected_mac:
-                connected_mac = connect_to_best_speaker(speakers)
-
-            if connected_mac:
-                try:
-                    ensure_spotify_playing(sp, config)
-                except spotipy.exceptions.SpotifyException as e:
-                    if e.http_status == 401:
-                        print("Token do Spotify expirou. Obtendo um novo...")
-                        sp = None
-                        continue
-            else:
-                print("Não foi possível conectar a nenhuma caixa. Tentando novamente em 10 segundos...")
-                time.sleep(10)
-                continue
+            try:
+                ensure_spotify_playing(sp, config)
+            except spotipy.exceptions.SpotifyException as e:
+                if e.http_status == 401:
+                    print("Token do Spotify expirou. Obtendo um novo...")
+                    sp = None
+                    continue
 
         else:  # current_state == 'DISABLED'
             disconnect_all_speakers(speakers)
