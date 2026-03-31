@@ -58,14 +58,62 @@ def is_bluetooth_connected(mac_address):
     except subprocess.CalledProcessError:
         return False
 
+def _reprovision_bluetooth(mac_address):
+    """Refaz pair+trust+connect para recuperar transporte de áudio (A2DP)."""
+    try:
+        with bt_lock:
+            subprocess.run(['bluetoothctl', 'disconnect', mac_address],
+                           capture_output=True, timeout=10)
+        time.sleep(2)
+        with bt_lock:
+            for cmd in ['pair', 'trust']:
+                subprocess.run(['bluetoothctl', cmd, mac_address],
+                               capture_output=True, timeout=20)
+                time.sleep(2)
+        with bt_lock:
+            result = subprocess.run(
+                ['bluetoothctl', 'connect', mac_address],
+                capture_output=True, text=True, timeout=20
+            )
+        output = result.stdout + result.stderr
+        time.sleep(5)
+        if 'Transport' in output and is_bluetooth_connected(mac_address):
+            print("Re-pareamento bem-sucedido — transporte de áudio estabelecido.")
+            return True
+        print("Re-pareamento falhou — sem transporte de áudio.")
+        return False
+    except Exception as e:
+        print(f"Erro no re-pareamento: {e}")
+        return False
+
 def connect_bluetooth(mac_address):
-    """Tenta conectar ao dispositivo Bluetooth."""
+    """Tenta conectar ao dispositivo Bluetooth. Retorna True somente com A2DP estabelecido."""
     print(f"Tentando conectar ao dispositivo {mac_address}...")
     try:
         with bt_lock:
-            subprocess.run(['bluetoothctl', 'connect', mac_address], timeout=20)
-        time.sleep(5)
-        return is_bluetooth_connected(mac_address)
+            result = subprocess.run(
+                ['bluetoothctl', 'connect', mac_address],
+                capture_output=True, text=True, timeout=20
+            )
+        output = result.stdout + result.stderr
+        time.sleep(3)
+
+        if not is_bluetooth_connected(mac_address):
+            return False
+
+        if 'Transport' in output:
+            return True
+
+        # Link BT estabelecido mas sem A2DP — ocorre quando caixinha está em modo pareamento
+        print(f"Conexão BT sem áudio. Tentando re-parear {mac_address}...")
+        if _reprovision_bluetooth(mac_address):
+            return True
+
+        # Re-pareamento falhou — desconecta para limpar estado e tentar fresh na próxima
+        with bt_lock:
+            subprocess.run(['bluetoothctl', 'disconnect', mac_address],
+                           capture_output=True, timeout=10)
+        return False
     except subprocess.TimeoutExpired:
         print("Timeout ao tentar conectar.")
         return False
