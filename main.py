@@ -1,7 +1,6 @@
 
 import json
 import os
-import random
 import time
 import threading
 import subprocess
@@ -213,18 +212,16 @@ def ensure_spotify_playing(sp, config):
             print(f"Dispositivo Spotify '{device_name}' não encontrado. Certifique-se que o raspotify está ativo.")
             return
 
-        # 3. Iniciar a playlist comunitária em posição aleatória
+        # 3. Iniciar a playlist em ordem aleatória
+        # shuffle(True) precisa vir ANTES do start_playback para o Spotify
+        # escolher uma faixa aleatória como ponto de partida
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
         try:
-            playlist_id = playlist_uri.split(':')[-1]
-            total = sp.playlist(playlist_id)['tracks']['total']
-            offset = random.randint(0, max(0, total - 1))
-            print(f"Posição aleatória escolhida: {offset}/{total}")
+            sp.shuffle(True, device_id=target_device_id)
+            time.sleep(1)
         except Exception as e:
-            print(f"Aviso: não foi possível obter total de músicas ({e}). Iniciando do começo.")
-            offset = 0
-        sp.start_playback(device_id=target_device_id, context_uri=playlist_uri,
-                          offset={'position': offset})
+            print(f"Aviso: não foi possível ativar shuffle ({e}).")
+        sp.start_playback(device_id=target_device_id, context_uri=playlist_uri)
         print("Playlist iniciada com sucesso!")
         try:
             time.sleep(2)
@@ -232,11 +229,10 @@ def ensure_spotify_playing(sp, config):
         except Exception as e:
             print(f"Aviso: não foi possível ajustar volume ({e}).")
         try:
-            time.sleep(3)
-            sp.shuffle(True, device_id=target_device_id)
+            time.sleep(2)
             sp.repeat('context', device_id=target_device_id)
         except Exception as e:
-            print(f"Aviso: não foi possível configurar shuffle/repeat ({e}).")
+            print(f"Aviso: não foi possível configurar repeat ({e}).")
 
     except Exception as e:
         print(f"Erro ao verificar/iniciar reprodução no Spotify: {e}")
