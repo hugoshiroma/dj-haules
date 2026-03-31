@@ -99,6 +99,16 @@ def disconnect_all_speakers(speakers):
             with bt_lock:
                 subprocess.run(['bluetoothctl', 'disconnect', mac])
 
+def reset_bluetooth_state(speakers):
+    """Limpa estado cacheado do bluetoothd ao iniciar o serviço."""
+    for speaker in speakers:
+        mac = speaker['mac']
+        name = speaker.get('name', mac)
+        print(f"Resetando estado Bluetooth de '{name}'...")
+        with bt_lock:
+            subprocess.run(['bluetoothctl', 'disconnect', mac],
+                           capture_output=True, timeout=10)
+
 # --- Spotify ---
 
 def get_spotify_token(config):
@@ -196,6 +206,11 @@ def main():
     # Inicia a interface web em uma thread separada
     webapp_thread = threading.Thread(target=run_webapp, daemon=True)
     webapp_thread.start()
+
+    # Limpa estado Bluetooth cacheado do bluetoothd antes de começar
+    initial_speakers = load_speakers()
+    if initial_speakers:
+        reset_bluetooth_state(initial_speakers)
 
     while True:
         current_state = get_state()
