@@ -37,15 +37,13 @@ Conecta com a senha:
 
 > **djhaules**
 
-⚠️ O celular pode avisar que essa rede "não tem internet" — pode ignorar esse aviso e ficar conectado nela mesmo assim.
+**3.** Assim que conectar, o celular vai **abrir uma página automaticamente** — é o DJ Haules pedindo os dados do Wi-Fi do bar. Se não abrir sozinho em uns 10 segundos, abre o navegador e acessa:
 
-**3.** Com o celular conectado no **DJHaules-Config**, abre o navegador e acessa:
-
-> **http://192.168.4.1:8080/wifi**
+> **http://192.168.4.1/wifi**
 
 > Não esquece o `http://` no começo, tá?
 
-**4.** Na página que abrir, clica em **"Ver redes Wi-Fi disponíveis"** e escolha a rede do bar. Insere a senha e clica em **"Salvar e Reconectar"**.
+**4.** Na página que abrir, clica em **"Ver redes Wi-Fi disponíveis"** e escolhe a rede do bar. Insere a senha e clica em **"Salvar e Reconectar"**.
 
 **5.** Aguarda até 30 segundos. Quando a rede **DJHaules-Config sumir** do Wi-Fi do seu celular, significa que deu certo — o DJ Haules se conectou na rede do bar.
 
@@ -63,7 +61,7 @@ Agora que o DJ Haules está na internet, vamos conectar a caixa de som.
 
 **2.** Ainda com o celular no Wi-Fi do bar, abre o navegador e acessa:
 
-> **http://dj-haules.local:8080/speakers**
+> **http://dj-haules.local/speakers**
 
 **3.** Clica em **"Procurar Caixas de Som por Bluetooth"** e aguarda ~15 segundos.
 
@@ -93,6 +91,17 @@ Não precisa mexer em nada, não precisa abrir nenhum app.
 
 ---
 
+### Trocando o estilo musical
+
+O DJ Haules tem playlists pré-configuradas. Para trocar o estilo que está tocando:
+
+1. Conecta o celular no **Wi-Fi do bar**
+2. Abre o navegador e acessa: **http://dj-haules.local**
+3. Clica em **"🎵 Estilo Musical"**
+4. Escolhe o estilo — a troca começa em até 30 segundos, sem precisar reiniciar nada
+
+---
+
 ### Comportamento importante: o DJ Haules sempre volta a tocar
 
 O DJ Haules é programado pra **sempre manter a música tocando**. Isso inclui:
@@ -103,7 +112,7 @@ O DJ Haules é programado pra **sempre manter a música tocando**. Isso inclui:
 
 **Pra parar a música de verdade, você tem duas opções:**
 
-1. **Desativar pelo site** (recomendado): abre **http://dj-haules.local:8080** e clica em "Desativar DJ Haules"
+1. **Desativar pelo site** (recomendado): abre **http://dj-haules.local** e clica em "Desativar DJ Haules"
 2. **Tirar da tomada**: desliga fisicamente o DJ Haules (a caixinha pequena)
 
 Qualquer pausa feita diretamente no Spotify vai ser desfeita automaticamente pelo sistema.
@@ -115,13 +124,13 @@ Qualquer pausa feita diretamente no Spotify vai ser desfeita automaticamente pel
 Quando outra pessoa precisar usar a caixa de som, você precisa desligar o DJ Haules pra ele largar o controle.
 
 1. Conecta o celular no **Wi-Fi do bar**
-2. Abre o navegador e acessa: **http://dj-haules.local:8080**
+2. Abre o navegador e acessa: **http://dj-haules.local**
 3. Clica em **"Desativar DJ Haules"**
 4. A caixa de som fica livre pra quem for usar
 
 Quando o evento acabar:
 
-1. Abre a mesma página: **http://dj-haules.local:8080**
+1. Abre a mesma página: **http://dj-haules.local**
 2. Clica em **"Ativar DJ Haules"**
 3. Aguarda uns 2 minutinhos e a música volta sozinha
 
@@ -137,30 +146,26 @@ Pega qualquer celular, abre o Wi-Fi e conecta na rede:
 
 > **DJHaules-Config** (senha: **djhaules**)
 
-⚠️ O celular pode avisar que não tem internet — pode ignorar e ficar conectado.
+Assim que conectar, o celular vai **abrir a página de configuração automaticamente**. Se não abrir sozinho, acessa no navegador:
 
-### Passo 2 — Abre a página de configuração
+> **http://192.168.4.1/wifi**
 
-Com o celular no **DJHaules-Config**, abre o navegador e acessa:
+### Passo 2 — Coloca os dados do novo Wi-Fi
 
-> **http://192.168.4.1:8080/wifi**
+Clica em **"Ver redes Wi-Fi disponíveis"**, escolhe a rede do bar, insere a nova senha e clica em **"Salvar e Reconectar"**.
 
-### Passo 3 — Coloca os dados do novo Wi-Fi
-
-Clica em **"Ver redes Wi-Fi disponíveis"**, escolha a rede do bar, insere a nova senha e clica em **"Salvar e Reconectar"**.
-
-### Passo 4 — Aguarda uns 30 segundos
+### Passo 3 — Aguarda uns 30 segundos
 
 Quando a rede **"DJHaules-Config" sumir** do Wi-Fi do seu celular, significa que conectou.
 
-### Passo 5 — Reinicia o DJ Haules
+### Passo 4 — Reinicia o DJ Haules
 
 1. Tira o DJ Haules da tomada
 2. Espera 10 segundos
 3. Liga de volta na tomada
 4. Aguarda uns 2 minutinhos
 
-### Passo 6 — Reconecta seu celular no Wi-Fi do bar
+### Passo 5 — Reconecta seu celular no Wi-Fi do bar
 
 O DJ Haules já vai estar tocando.
 
@@ -172,7 +177,7 @@ Precisa conectar uma caixa nova ou trocar a que está sendo usada?
 
 1. **Liga a nova caixa de som** e coloca em **modo de pareamento Bluetooth** (luz piscando)
 2. Conecta o celular no **Wi-Fi do bar**
-3. Abre o navegador: **http://dj-haules.local:8080/speakers**
+3. Abre o navegador: **http://dj-haules.local/speakers**
 4. Clica em **"Procurar Caixas de Som por Bluetooth"** e aguarda ~15 segundos
 5. Clica em **"Salvar"** ao lado do nome da sua caixa
 6. Pronto — ela passa a ser a caixa principal automaticamente
@@ -190,8 +195,9 @@ Precisa conectar uma caixa nova ou trocar a que está sendo usada?
 | Problema | O que fazer |
 |---|---|
 | **A música não começou a tocar** | 1. Verifica se a caixa de som tá ligada e em alcance<br>2. Aguarda mais uns 2 minutinhos<br>3. Desliga e liga a caixa de som de novo<br>4. Abre o Spotify no celular → ícone de caixinha no player → verifica se **raspotify (dj-haules)** aparece. Se não aparecer, tira o DJ Haules da tomada, espera 10 segundos e liga de novo |
-| **Pausei no Spotify e a música voltou sozinha** | É o comportamento esperado. Pra parar de vez, acessa **http://dj-haules.local:8080** e clica em "Desativar DJ Haules" |
-| **A página de controle não abre** | 1. Verifica se o celular tá no Wi-Fi do bar (não no 4G)<br>2. Tenta de novo: **http://dj-haules.local:8080**<br>3. Se a senha do Wi-Fi mudou, segue a Parte 3 deste guia |
+| **Pausei no Spotify e a música voltou sozinha** | É o comportamento esperado. Pra parar de vez, acessa **http://dj-haules.local** e clica em "Desativar DJ Haules" |
+| **A página de controle não abre** | 1. Verifica se o celular tá no Wi-Fi do bar (não no 4G)<br>2. Tenta de novo: **http://dj-haules.local**<br>3. Se a senha do Wi-Fi mudou, segue a Parte 3 deste guia |
+| **A página abriu mas está estranha / sem estilo** | Tenta acessar com `http://` na frente: **http://dj-haules.local** |
 | **A caixa de som não aparece no scan** | 1. Coloca a caixinha em modo de pareamento de novo<br>2. Garante que ela não tá conectada em outro dispositivo<br>3. Tenta escanear de novo |
 | **A caixinha conectou em outro dispositivo e o DJ Haules não voltou** | 1. Aguarda até 1 minuto — ele tenta sozinho<br>2. Se não voltar, aperta o botão de Bluetooth na caixinha<br>3. Se ainda não funcionar, desliga e liga a caixa de som |
 | **A música tá travando ou picotando** | 1. Aproxima a caixinha do DJ Haules da caixa de som<br>2. Evita objetos de metal ou muito líquido entre as duas — atrapalha o sinal Bluetooth |
@@ -203,7 +209,8 @@ Precisa conectar uma caixa nova ou trocar a que está sendo usada?
 
 | O que fazer | Endereço |
 |---|---|
-| Ligar/desligar o DJ Haules | http://dj-haules.local:8080 |
-| Gerenciar caixas de som | http://dj-haules.local:8080/speakers |
-| Configurar Wi-Fi (via rede do bar) | http://dj-haules.local:8080/wifi |
-| Configurar Wi-Fi (via DJHaules-Config) | http://192.168.4.1:8080/wifi |
+| Ligar/desligar o DJ Haules | http://dj-haules.local |
+| Trocar o estilo musical | http://dj-haules.local/playlist |
+| Gerenciar caixas de som | http://dj-haules.local/speakers |
+| Configurar Wi-Fi (via rede do bar) | http://dj-haules.local/wifi |
+| Configurar Wi-Fi (via DJHaules-Config) | http://192.168.4.1/wifi |
