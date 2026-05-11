@@ -67,11 +67,13 @@ disable_captive_portal() {
 }
 
 activate_hotspot() {
+    ensure_hotspot_profile_exists
     if hotspot_active; then
+        # Garante a regra de captive portal mesmo se o hotspot já estava ativo
+        enable_captive_portal
         return 0
     fi
     log "Sem internet. Ativando hotspot '${HOTSPOT_SSID}'..."
-    ensure_hotspot_profile_exists
     nmcli con up "$HOTSPOT_CON" &>/dev/null
     if hotspot_active; then
         enable_captive_portal
