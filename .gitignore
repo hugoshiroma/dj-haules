@@ -2,6 +2,7 @@
 config/settings.ini
 config/speakers.json
 config/state.txt
+config/active_playlist.txt
 
 # Ambiente virtual Python
 .venv/

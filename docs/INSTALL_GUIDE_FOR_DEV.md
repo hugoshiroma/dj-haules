@@ -209,6 +209,9 @@ Deve aparecer `active (running)` e nos logs: `Using AlsaSink` e `Published zeroc
 ## 7. Instalando o Serviço Principal (DJ Haules)
 
 ```bash
+# Tornar o script de iptables executável
+chmod +x /home/$USER/dj-haules/scripts/setup_iptables.sh
+
 sudo bash -c "cat > /etc/systemd/system/djhaules.service << EOF
 [Unit]
 Description=DJ Haules Service
@@ -219,6 +222,7 @@ User=$USER
 Group=$USER
 WorkingDirectory=/home/$USER/dj-haules
 ExecStartPre=/usr/sbin/rfkill unblock bluetooth
+ExecStartPre=/home/$USER/dj-haules/scripts/setup_iptables.sh
 ExecStart=/home/$USER/dj-haules/.venv/bin/python /home/$USER/dj-haules/main.py
 Restart=always
 RestartSec=10
@@ -234,17 +238,23 @@ sudo systemctl start djhaules.service
 sudo systemctl status djhaules.service
 ```
 
-> O `ExecStartPre` garante que o Bluetooth nunca fique bloqueado após um reboot.
+> O `ExecStartPre` com `rfkill` garante que o Bluetooth nunca fique bloqueado após um reboot.
+> O `ExecStartPre` com `setup_iptables.sh` redireciona porta 80 → 8080, permitindo acessar a interface via `http://dj-haules.local` sem precisar digitar a porta.
 
 ---
 
-## 8. Configurando a Resiliência Wi-Fi (Hotspot de Recuperação)
+## 8. Configurando a Resiliência Wi-Fi (Hotspot de Recuperação + Captive Portal)
 
-Se a senha do Wi-Fi do bar for alterada, o Pi ativa automaticamente um hotspot para reconfiguração.
+Se a senha do Wi-Fi do bar for alterada, o Pi ativa automaticamente um hotspot para reconfiguração. O captive portal faz o celular **abrir a página de configuração automaticamente** ao conectar no hotspot.
 
 > **Requisito:** Raspberry Pi OS **Bookworm** (2023+) com NetworkManager.
 
 ```bash
+# Instalar a configuração de DNS para captive portal
+sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d
+sudo cp /home/$USER/dj-haules/scripts/captive-portal-dns.conf \
+    /etc/NetworkManager/dnsmasq-shared.d/djhaules-captive.conf
+
 # Tornar o script executável
 chmod +x /home/$USER/dj-haules/scripts/wifi_monitor.sh
 
@@ -256,7 +266,7 @@ sudo systemctl enable djhaules-wifi.service
 sudo systemctl start djhaules-wifi.service
 ```
 
-Quando o Pi perder a internet, ele cria a rede **"DJHaules-Config"** (senha: `djhaules`). Conecte-se a ela e acesse `http://192.168.4.1:8080/wifi` para inserir as novas credenciais da rede.
+Quando o Pi perder a internet, ele cria a rede **"DJHaules-Config"** (senha: `djhaules`). Ao conectar, o celular detecta o captive portal e **abre a página de configuração automaticamente**. Caso não abra, acesse manualmente `http://192.168.4.1/wifi`.
 
 ---
 
@@ -299,7 +309,34 @@ Playlist iniciada com sucesso!
 
 ---
 
-## 11. Atualizando o Projeto
+## 11. Atualização Automática ao Desligar/Reiniciar
+
+O Pi pode atualizar o código do projeto automaticamente sempre que for reiniciado, desde que tenha internet. Assim, basta fazer `git push` do desenvolvimento e reiniciar o Pi para ele pegar as novidades sem intervenção manual.
+
+```bash
+# Tornar o script executável
+chmod +x /home/$USER/dj-haules/scripts/auto_update.sh
+
+# Substituir "seu_usuario" pelo seu usuário real no arquivo do serviço
+sed -i "s/seu_usuario/$USER/g" /home/$USER/dj-haules/scripts/djhaules-update.service
+
+# Instalar o serviço
+sudo cp /home/$USER/dj-haules/scripts/djhaules-update.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable djhaules-update.service
+```
+
+A partir daí, toda vez que o Pi for desligado ou reiniciado (via `sudo reboot` ou desligamento físico normal), ele tenta fazer `git pull origin main` antes de encerrar. Se não houver internet, simplesmente ignora e desliga normalmente. Os logs ficam em:
+
+```bash
+sudo journalctl -t djhaules-update
+```
+
+> O `config/settings.ini` e `config/speakers.json` **não são sobrescritos** pelo `git pull` — suas configurações e caixas salvas ficam preservadas.
+
+---
+
+## 12. Atualizando o Projeto Manualmente
 
 ```bash
 cd /home/$USER/dj-haules
@@ -308,5 +345,3 @@ git pull
 source .venv/bin/activate && pip install -r requirements.txt
 sudo systemctl start djhaules.service
 ```
-
-> O `config/settings.ini` **não é sobrescrito** pelo `git pull` — suas credenciais ficam preservadas.

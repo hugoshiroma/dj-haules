@@ -1,0 +1,23 @@
+[
+  {
+    "id": "brasilidades",
+    "name": "Brasilidades",
+    "emoji": "🇧🇷",
+    "uri": null,
+    "descricao": "A playlist oficial do bar"
+  },
+  {
+    "id": "rap",
+    "name": "Rap BR",
+    "emoji": "🎤",
+    "uri": "spotify:playlist:37i9dQZF1E4vPz8Vu7jVol",
+    "descricao": "Os melhores do rap nacional"
+  },
+  {
+    "id": "sambinha",
+    "name": "Sambinha",
+    "emoji": "🥁",
+    "uri": "spotify:playlist:0ekY3YVbazqb5WyTYUNqOh",
+    "descricao": "Samba pra animar"
+  }
+]

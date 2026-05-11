@@ -1,6 +1,7 @@
 
 import json
 import os
+import random
 import time
 import threading
 import subprocess
@@ -15,6 +16,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, 'config', 'settings.ini')
 STATE_FILE = os.path.join(BASE_DIR, 'config', 'state.txt')
 SPEAKERS_FILE = os.path.join(BASE_DIR, 'config', 'speakers.json')
+PLAYLISTS_FILE = os.path.join(BASE_DIR, 'config', 'playlists.json')
+ACTIVE_PLAYLIST_FILE = os.path.join(BASE_DIR, 'config', 'active_playlist.txt')
 
 # --- Interface Web ---
 
@@ -156,6 +159,25 @@ def reset_bluetooth_state(speakers):
             subprocess.run(['bluetoothctl', 'disconnect', mac],
                            capture_output=True, timeout=10)
 
+# --- Playlist ativa ---
+
+def get_active_playlist_uri(config):
+    """Retorna a URI da playlist selecionada no momento."""
+    active_id = 'brasilidades'
+    if os.path.exists(ACTIVE_PLAYLIST_FILE):
+        with open(ACTIVE_PLAYLIST_FILE) as f:
+            active_id = f.read().strip() or 'brasilidades'
+
+    if os.path.exists(PLAYLISTS_FILE):
+        with open(PLAYLISTS_FILE) as f:
+            playlists = json.load(f)
+        for pl in playlists:
+            if pl['id'] == active_id and pl.get('uri'):
+                return pl['uri']
+
+    return config.get('APP', 'PLAYLIST_URI')
+
+
 # --- Spotify ---
 
 def get_spotify_token(config):
@@ -184,9 +206,9 @@ def create_spotify_client(config):
     return None
 
 def ensure_spotify_playing(sp, config):
-    """Garante que a playlist comunitária está tocando no dispositivo correto."""
+    """Garante que a playlist ativa está tocando no dispositivo correto."""
     device_name = config.get('APP', 'DEVICE_NAME')
-    playlist_uri = config.get('APP', 'PLAYLIST_URI')
+    playlist_uri = get_active_playlist_uri(config)
 
     try:
         # 1. Verificar o estado atual de reprodução
@@ -209,19 +231,33 @@ def ensure_spotify_playing(sp, config):
                 break
 
         if not target_device_id:
-            print(f"Dispositivo Spotify '{device_name}' não encontrado. Certifique-se que o raspotify está ativo.")
+            print(f"Dispositivo Spotify '{device_name}' não encontrado. Aguardando Raspotify registrar o dispositivo...")
             return
 
-        # 3. Iniciar a playlist em ordem aleatória
-        # shuffle(True) precisa vir ANTES do start_playback para o Spotify
-        # escolher uma faixa aleatória como ponto de partida
+        # 3. Iniciar a playlist em posição aleatória
+        # shuffle(True) sozinho ainda começa pela faixa 0 — precisamos de um offset
+        # aleatório para garantir que cada reinício começa numa música diferente.
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
         try:
             sp.shuffle(True, device_id=target_device_id)
             time.sleep(1)
         except Exception as e:
             print(f"Aviso: não foi possível ativar shuffle ({e}).")
-        sp.start_playback(device_id=target_device_id, context_uri=playlist_uri)
+
+        random_offset = 0
+        try:
+            playlist_info = sp.playlist(playlist_uri, fields='tracks.total')
+            total_tracks = playlist_info['tracks']['total']
+            if total_tracks > 1:
+                random_offset = random.randint(0, total_tracks - 1)
+        except Exception as e:
+            print(f"Aviso: não foi possível obter total de faixas ({e}).")
+
+        sp.start_playback(
+            device_id=target_device_id,
+            context_uri=playlist_uri,
+            offset={'position': random_offset},
+        )
         print("Playlist iniciada com sucesso!")
         try:
             time.sleep(2)
@@ -273,10 +309,14 @@ def main():
 
             if not connected_mac:
                 connected_mac = connect_to_best_speaker(speakers)
+                if connected_mac:
+                    # Aguarda o Raspotify registrar o dispositivo no Spotify após nova conexão BT
+                    print("Bluetooth conectado. Aguardando Raspotify ficar disponível...")
+                    time.sleep(10)
 
             if not connected_mac:
-                print("Não foi possível conectar a nenhuma caixa. Tentando novamente em 10 segundos...")
-                time.sleep(10)
+                print("Não foi possível conectar a nenhuma caixa. Tentando novamente em 5 segundos...")
+                time.sleep(5)
                 continue
 
             # 2. Spotify — só tenta se Bluetooth estiver conectado

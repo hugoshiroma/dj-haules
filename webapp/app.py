@@ -13,6 +13,8 @@ app = Flask(__name__)
 BASE_DIR = os.path.join(os.path.dirname(__file__), '..')
 STATE_FILE = os.path.join(BASE_DIR, 'config', 'state.txt')
 SPEAKERS_FILE = os.path.join(BASE_DIR, 'config', 'speakers.json')
+PLAYLISTS_FILE = os.path.join(BASE_DIR, 'config', 'playlists.json')
+ACTIVE_PLAYLIST_FILE = os.path.join(BASE_DIR, 'config', 'active_playlist.txt')
 
 
 # --- Helpers de estado ---
@@ -41,6 +43,23 @@ def save_speakers(speakers):
         json.dump(speakers, f, indent=2, ensure_ascii=False)
 
 
+# --- Captive portal detection ---
+# iOS, Android, Windows e Firefox tentam essas URLs ao conectar numa rede nova.
+# Respondendo com redirect para /wifi, o OS mostra o popup de "acessar rede".
+
+@app.route('/hotspot-detect.html')
+@app.route('/library/test/success.html')
+@app.route('/success.html')
+@app.route('/generate_204')
+@app.route('/connecttest.txt')
+@app.route('/ncsi.txt')
+@app.route('/canonical.html')
+@app.route('/redirect')
+def captive_portal_redirect():
+    from flask import redirect as flask_redirect
+    return flask_redirect('/wifi', 302)
+
+
 # --- Rotas principais ---
 
 @app.route('/')
@@ -55,6 +74,43 @@ def toggle():
     current_state = get_state()
     set_state('DISABLED' if current_state == 'ENABLED' else 'ENABLED')
     return redirect(url_for('index'))
+
+
+# --- Helpers de playlists ---
+
+def load_playlists():
+    if not os.path.exists(PLAYLISTS_FILE):
+        return []
+    with open(PLAYLISTS_FILE, encoding='utf-8') as f:
+        return json.load(f)
+
+def get_active_playlist_id():
+    if not os.path.exists(ACTIVE_PLAYLIST_FILE):
+        return 'brasilidades'
+    with open(ACTIVE_PLAYLIST_FILE) as f:
+        return f.read().strip() or 'brasilidades'
+
+
+# --- Rotas de playlist ---
+
+@app.route('/playlist')
+def playlist_page():
+    playlists = load_playlists()
+    active_id = get_active_playlist_id()
+    return render_template('playlist.html', playlists=playlists, active_id=active_id)
+
+@app.route('/api/playlist/select', methods=['POST'])
+def api_playlist_select():
+    data = request.get_json() or {}
+    playlist_id = (data.get('id') or '').strip()
+    if not playlist_id:
+        return jsonify({'ok': False, 'error': 'ID não informado.'})
+    playlists = load_playlists()
+    if not any(p['id'] == playlist_id for p in playlists):
+        return jsonify({'ok': False, 'error': 'Playlist não encontrada.'})
+    with open(ACTIVE_PLAYLIST_FILE, 'w') as f:
+        f.write(playlist_id)
+    return jsonify({'ok': True})
 
 
 # --- Rotas de gerenciamento de caixas ---
@@ -117,37 +173,89 @@ def api_scan():
             return jsonify({'ok': False, 'error': str(e), 'devices': []})
 
 
-def is_already_paired(mac):
-    """Verifica se o dispositivo já está paired no Pi."""
+def is_bt_connected(mac):
+    """Verifica se o dispositivo está conectado via Bluetooth."""
     try:
         output = subprocess.check_output(['bluetoothctl', 'info', mac], text=True, timeout=5)
-        return "Paired: yes" in output
+        return 'Connected: yes' in output
     except Exception:
         return False
 
 
+def is_already_paired(mac):
+    """Verifica se o dispositivo já está pareado no Pi."""
+    try:
+        output = subprocess.check_output(['bluetoothctl', 'info', mac], text=True, timeout=5)
+        return 'Paired: yes' in output
+    except Exception:
+        return False
+
+
+def _do_pair_attempt(mac):
+    """
+    Executa uma tentativa completa de pair+trust+connect.
+    Retorna (conectado: bool, tem_audio: bool).
+    """
+    already_paired = is_already_paired(mac)
+    cmds = ['trust', 'connect'] if already_paired else ['pair', 'trust', 'connect']
+    connect_output = ''
+    for cmd in cmds:
+        try:
+            result = subprocess.run(
+                ['bluetoothctl', cmd, mac],
+                capture_output=True, text=True, timeout=25
+            )
+            if cmd == 'connect':
+                connect_output = result.stdout + result.stderr
+            time.sleep(2)
+        except subprocess.TimeoutExpired:
+            return False, False
+
+    time.sleep(3)
+    if not is_bt_connected(mac):
+        return False, False
+
+    has_audio = 'Transport' in connect_output
+    return True, has_audio
+
+
 @app.route('/api/pair', methods=['POST'])
 def api_pair():
-    """Faz pair + trust + connect num dispositivo e salva como caixa principal."""
+    """Faz pair+trust+connect com até 3 tentativas e verifica se o áudio foi estabelecido."""
     data = request.get_json()
     mac = (data.get('mac') or '').upper()
     name = data.get('name') or mac
 
     if not re.match(r'^([0-9A-F]{2}:){5}[0-9A-F]{2}$', mac):
-        return jsonify({'ok': False, 'error': 'MAC address inválido'})
+        return jsonify({'ok': False, 'error': 'Endereço do dispositivo inválido.'})
 
-    with bt_lock:
-        already_paired = is_already_paired(mac)
-        cmds = ['trust', 'connect'] if already_paired else ['pair', 'trust', 'connect']
-        for cmd in cmds:
-            try:
-                subprocess.run(
-                    ['bluetoothctl', cmd, mac],
-                    capture_output=True, text=True, timeout=20
-                )
-                time.sleep(2)
-            except subprocess.TimeoutExpired:
-                return jsonify({'ok': False, 'error': f'Timeout ao executar "{cmd}"'})
+    connected = False
+    has_audio = False
+    MAX_ATTEMPTS = 3
+
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        with bt_lock:
+            connected, has_audio = _do_pair_attempt(mac)
+
+        if connected:
+            break
+
+        if attempt < MAX_ATTEMPTS:
+            # Descarta estado ruim antes de tentar de novo
+            with bt_lock:
+                subprocess.run(['bluetoothctl', 'disconnect', mac],
+                               capture_output=True, timeout=10)
+            time.sleep(3)
+
+    if not connected:
+        return jsonify({
+            'ok': False,
+            'error': (
+                'Não foi possível conectar após 3 tentativas. '
+                'Verifique se a caixa está ligada e próxima, '
+                'coloque-a em modo de pareamento (botão Bluetooth) e tente novamente.'
+            )
+        })
 
     # Salva como prioridade 1 (principal), incrementa as demais
     speakers = [s for s in load_speakers() if s['mac'].upper() != mac]
@@ -156,6 +264,41 @@ def api_pair():
     speakers.insert(0, {'name': name, 'mac': mac, 'priority': 1})
     save_speakers(speakers)
 
+    if not has_audio:
+        return jsonify({
+            'ok': True,
+            'warning': (
+                'A caixa foi salva, mas pode demorar alguns segundos até o som aparecer. '
+                'Se não tocar, desligue e ligue a caixa novamente.'
+            )
+        })
+
+    return jsonify({'ok': True})
+
+
+# --- API de status das caixas ---
+
+@app.route('/api/speakers/status')
+def api_speakers_status():
+    """Retorna o status de conexão Bluetooth de cada caixa salva."""
+    speakers = load_speakers()
+    statuses = []
+    for s in speakers:
+        mac = s['mac']
+        connected = is_bt_connected(mac)
+        statuses.append({'mac': mac, 'connected': connected})
+    return jsonify({'ok': True, 'statuses': statuses})
+
+
+@app.route('/api/speakers/remove', methods=['POST'])
+def api_speakers_remove():
+    """Remove uma caixa salva (versão JSON para chamadas AJAX)."""
+    data = request.get_json() or {}
+    mac = (data.get('mac') or '').upper()
+    if not mac:
+        return jsonify({'ok': False, 'error': 'MAC não informado.'})
+    speakers = [s for s in load_speakers() if s['mac'].upper() != mac]
+    save_speakers(speakers)
     return jsonify({'ok': True})
 
 
@@ -164,6 +307,47 @@ def api_pair():
 @app.route('/wifi')
 def wifi_page():
     return render_template('wifi.html')
+
+
+@app.route('/api/wifi/scan')
+def api_wifi_scan():
+    """Lista as redes Wi-Fi disponíveis com nome, força de sinal e se está em uso."""
+    try:
+        subprocess.run(
+            ['sudo', 'nmcli', 'dev', 'wifi', 'rescan'],
+            capture_output=True, timeout=10
+        )
+        output = subprocess.check_output(
+            ['nmcli', '-t', '-f', 'IN-USE,SSID,SIGNAL,SECURITY', 'dev', 'wifi', 'list'],
+            text=True, timeout=10
+        )
+        seen = set()
+        networks = []
+        for line in output.strip().split('\n'):
+            parts = line.split(':')
+            if len(parts) < 4:
+                continue
+            in_use   = parts[0].strip() == '*'
+            ssid     = ':'.join(parts[1:-2]).strip()  # SSID pode conter ':'
+            signal   = parts[-2].strip()
+            security = parts[-1].strip()
+            if not ssid or ssid in seen:
+                continue
+            seen.add(ssid)
+            try:
+                signal_pct = int(signal)
+            except ValueError:
+                signal_pct = 0
+            networks.append({
+                'ssid': ssid,
+                'signal': signal_pct,
+                'security': security not in ('', '--'),
+                'in_use': in_use,
+            })
+        networks.sort(key=lambda x: (-int(x['in_use']), -x['signal']))
+        return jsonify({'ok': True, 'networks': networks})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e), 'networks': []})
 
 
 @app.route('/api/wifi/status')

@@ -99,10 +99,13 @@
 <body>
   <img src="/static/logo.png" class="logo" alt="Haules">
   <h1>DJ Haules</h1>
-  <p class="subtitle">Sistema de Som Automático</p>
-  <span class="status-badge {% if status == 'ATIVADO' %}on{% endif %}">{{ status }}</span>
+  <p class="subtitle">Som ambiente do bar</p>
+  <span class="status-badge {% if status == 'ATIVADO' %}on{% endif %}">
+    {% if status == 'ATIVADO' %}🎵 Tocando{% else %}⏸ Pausado{% endif %}
+  </span>
   <a href="/toggle" class="btn-primary">{{ action_text }}</a>
-  <a href="/speakers" class="btn-ghost">&#9835; Gerenciar Caixas de Som</a>
-  <a href="/wifi" class="btn-ghost">&#8226; Configurar Wi-Fi</a>
+  <a href="/playlist" class="btn-ghost">🎵 Estilo Musical</a>
+  <a href="/speakers" class="btn-ghost">🔊 Caixas de Som</a>
+  <a href="/wifi" class="btn-ghost">📶 Rede Wi-Fi</a>
 </body>
 </html>

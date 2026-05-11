@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estilo Musical — DJ Haules</title>
+  <style>
+    :root {
+      --bg:      #0a0a0a;
+      --surface: #161616;
+      --accent:  #ffaa00;
+      --text:    #ffffff;
+      --muted:   #777777;
+      --border:  #2a2a2a;
+      --ok:      #44aa44;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1.5rem;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .header img { width: 32px; height: 32px; object-fit: contain; opacity: 0.9; }
+    .header h1 { font-size: 1.1rem; font-weight: 700; color: var(--accent); flex: 1; }
+    .back-link { font-size: 0.8rem; color: var(--muted); text-decoration: none; }
+    .back-link:hover { color: var(--text); }
+
+    .subtitle {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 2rem;
+    }
+
+    .playlist-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .playlist-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+      user-select: none;
+    }
+    .playlist-card:hover { border-color: #555; }
+    .playlist-card.active {
+      border-color: var(--ok);
+      background: #0d1f0d;
+    }
+    .playlist-card.loading {
+      border-color: var(--accent);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .playlist-emoji {
+      font-size: 2rem;
+      flex-shrink: 0;
+      width: 2.5rem;
+      text-align: center;
+    }
+
+    .playlist-info { flex: 1; }
+    .playlist-name {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 0.15rem;
+    }
+    .playlist-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .playlist-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      color: var(--ok);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .result-msg {
+      margin-top: 1rem;
+      font-size: 0.82rem;
+      padding: 0.6rem 0.9rem;
+      border-radius: 8px;
+      line-height: 1.5;
+    }
+    .result-msg.ok  { background: #0f1f0f; border: 1px solid #2a5a2a; color: #77cc77; }
+    .result-msg.err { background: #1f0f0f; border: 1px solid #5a2a2a; color: #cc7777; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <img src="/static/logo.png" alt="Haules">
+    <h1>Estilo Musical</h1>
+    <a href="/" class="back-link">← Voltar</a>
+  </div>
+  <p class="subtitle">Escolha o estilo que vai tocar agora. A troca começa em até 30 segundos.</p>
+
+  <div class="playlist-grid" id="playlist-grid">
+    {% for pl in playlists %}
+    <div class="playlist-card {% if pl.id == active_id %}active{% endif %}"
+         id="card-{{ pl.id }}"
+         onclick="selectPlaylist('{{ pl.id }}')">
+      <div class="playlist-emoji">{{ pl.emoji }}</div>
+      <div class="playlist-info">
+        <div class="playlist-name">{{ pl.name }}</div>
+        <div class="playlist-desc">{{ pl.descricao }}</div>
+      </div>
+      {% if pl.id == active_id %}
+        <span class="playlist-badge" id="badge-{{ pl.id }}">Tocando</span>
+      {% else %}
+        <span id="badge-{{ pl.id }}"></span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div id="result-msg"></div>
+
+  <script>
+    let currentActive = '{{ active_id }}';
+
+    async function selectPlaylist(id) {
+      if (id === currentActive) return;
+
+      // Visual feedback imediato
+      const prevCard = document.getElementById('card-' + currentActive);
+      const prevBadge = document.getElementById('badge-' + currentActive);
+      if (prevCard) {
+        prevCard.classList.remove('active');
+        prevBadge.textContent = '';
+      }
+
+      const card = document.getElementById('card-' + id);
+      const badge = document.getElementById('badge-' + id);
+      card.classList.add('loading');
+      badge.innerHTML = '<span class="spinner"></span>';
+
+      document.getElementById('result-msg').innerHTML = '';
+
+      try {
+        const res = await fetch('/api/playlist/select', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+
+        card.classList.remove('loading');
+
+        if (data.ok) {
+          card.classList.add('active');
+          badge.innerHTML = '<span class="playlist-badge">Tocando</span>';
+          currentActive = id;
+          document.getElementById('result-msg').innerHTML =
+            '<div class="result-msg ok">✓ Estilo trocado! A música muda em até 30 segundos.</div>';
+        } else {
+          // Reverte
+          if (prevCard) {
+            prevCard.classList.add('active');
+            prevBadge.innerHTML = '<span class="playlist-badge">Tocando</span>';
+          }
+          badge.textContent = '';
+          document.getElementById('result-msg').innerHTML =
+            `<div class="result-msg err">❌ ${data.error}</div>`;
+        }
+      } catch (e) {
+        card.classList.remove('loading');
+        if (prevCard) {
+          prevCard.classList.add('active');
+          prevBadge.innerHTML = '<span class="playlist-badge">Tocando</span>';
+        }
+        badge.textContent = '';
+        document.getElementById('result-msg').innerHTML =
+          '<div class="result-msg err">❌ Erro de comunicação. Tente novamente.</div>';
+      }
+    }
+  </script>
+
+</body>
+</html>

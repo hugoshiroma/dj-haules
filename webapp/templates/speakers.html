@@ -13,6 +13,7 @@
       --muted:   #777777;
       --border:  #2a2a2a;
       --danger:  #cc3333;
+      --ok:      #44aa44;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -62,8 +63,10 @@
       border-radius: 10px;
       padding: 0.85rem 1rem;
       margin-bottom: 0.5rem;
+      transition: border-color 0.3s;
     }
-    .speaker-card:first-child { border-color: var(--accent); }
+    .speaker-card.is-connected { border-color: var(--ok); }
+    .speaker-card:first-child:not(.is-connected) { border-color: var(--accent); }
     .speaker-info { flex: 1; overflow: hidden; }
     .speaker-name {
       font-size: 0.9rem;
@@ -72,13 +75,31 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .speaker-mac { font-size: 0.72rem; color: var(--muted); margin-top: 0.15rem; }
+    .speaker-status {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .speaker-status .dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+    .speaker-status.connected .dot { background: var(--ok); }
+    .speaker-status.connected { color: var(--ok); }
     .priority-badge {
       font-size: 0.65rem;
       font-weight: 700;
       letter-spacing: 0.08em;
       color: var(--accent);
       text-transform: uppercase;
+      white-space: nowrap;
     }
     .btn-remove {
       font-size: 0.75rem;
@@ -89,8 +110,10 @@
       padding: 0.35rem 0.7rem;
       cursor: pointer;
       transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
     }
-    .btn-remove:hover { color: var(--danger); border-color: var(--danger); }
+    .btn-remove:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+    .btn-remove:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .empty-state {
       text-align: center;
@@ -134,6 +157,10 @@
       margin-right: 6px;
       vertical-align: middle;
     }
+    .spinner-dark {
+      border-color: rgba(0,0,0,0.25);
+      border-top-color: #0a0a0a;
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Discovered devices */
@@ -156,7 +183,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .device-mac { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+    .device-hint { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
     .btn-pair {
       font-size: 0.75rem;
       font-weight: 600;
@@ -172,8 +199,9 @@
     .btn-pair:hover { background: var(--accent); color: #0a0a0a; }
     .btn-pair:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    .msg { font-size: 0.8rem; margin-top: 0.5rem; padding: 0.5rem 0.75rem; border-radius: 6px; }
+    .msg { font-size: 0.8rem; margin-top: 0.5rem; padding: 0.6rem 0.75rem; border-radius: 6px; line-height: 1.5; }
     .msg.ok  { background: #1a2a1a; color: #66cc66; }
+    .msg.warn { background: #2a2000; color: #ccaa44; border: 1px solid #554400; }
     .msg.err { background: #2a1a1a; color: #cc6666; }
   </style>
 </head>
@@ -187,25 +215,29 @@
 
   <!-- Caixas salvas -->
   <p class="section-title">Caixas Salvas</p>
-  <div class="speakers-list">
+  <div class="speakers-list" id="speakers-list">
     {% if speakers %}
       {% for speaker in speakers %}
-      <div class="speaker-card">
+      <div class="speaker-card" id="card-saved-{{ speaker.mac | replace(':', '_') }}">
         <div class="speaker-info">
           <div class="speaker-name">{{ speaker.name }}</div>
-          <div class="speaker-mac">{{ speaker.mac }}</div>
+          <div class="speaker-status" id="status-{{ speaker.mac | replace(':', '_') }}">
+            <span class="dot"></span>
+            <span class="label">Verificando...</span>
+          </div>
         </div>
         {% if loop.first %}
           <span class="priority-badge">Principal</span>
         {% endif %}
-        <form method="post" action="/speakers/remove" style="margin:0">
-          <input type="hidden" name="mac" value="{{ speaker.mac }}">
-          <button type="submit" class="btn-remove">Remover</button>
-        </form>
+        <button class="btn-remove"
+          id="remove-{{ speaker.mac | replace(':', '_') }}"
+          onclick="removeSpeaker('{{ speaker.mac }}', '{{ speaker.name }}')">
+          Remover
+        </button>
       </div>
       {% endfor %}
     {% else %}
-      <p class="empty-state">Nenhuma caixa salva.<br>Escaneie abaixo para adicionar a primeira.</p>
+      <p class="empty-state" id="empty-state">Nenhuma caixa salva ainda.<br>Escaneie abaixo para adicionar a primeira.</p>
     {% endif %}
   </div>
 
@@ -213,13 +245,88 @@
   <p class="section-title">Adicionar Nova Caixa</p>
   <div class="scan-section">
     <button class="btn-scan" id="scan-btn" onclick="startScan()">
-      Escanear Bluetooth (~15s)
+      Procurar Caixas de Som por Bluetooth (~15s)
     </button>
     <div id="scan-status"></div>
     <div id="scan-results"></div>
   </div>
 
   <script>
+    // --- Dados das caixas salvas (para o polling de status) ---
+    const savedSpeakers = [
+      {% for speaker in speakers %}
+        { mac: '{{ speaker.mac }}', name: '{{ speaker.name }}' },
+      {% endfor %}
+    ];
+
+    // --- Polling de status de conexão ---
+    async function refreshStatuses() {
+      if (!savedSpeakers.length) return;
+      try {
+        const res = await fetch('/api/speakers/status');
+        const data = await res.json();
+        if (!data.ok) return;
+        data.statuses.forEach(s => {
+          const id = s.mac.replace(/:/g, '_');
+          const el = document.getElementById('status-' + id);
+          const card = document.getElementById('card-saved-' + id);
+          if (!el) return;
+          if (s.connected) {
+            el.className = 'speaker-status connected';
+            el.innerHTML = '<span class="dot"></span><span class="label">Conectada e tocando</span>';
+            if (card) card.classList.add('is-connected');
+          } else {
+            el.className = 'speaker-status';
+            el.innerHTML = '<span class="dot"></span><span class="label">Aguardando conexão...</span>';
+            if (card) card.classList.remove('is-connected');
+          }
+        });
+      } catch (_) {}
+    }
+
+    refreshStatuses();
+    setInterval(refreshStatuses, 5000);
+
+    // --- Remover caixa ---
+    async function removeSpeaker(mac, name) {
+      const id = mac.replace(/:/g, '_');
+      const btn = document.getElementById('remove-' + id);
+      const card = document.getElementById('card-saved-' + id);
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color:#aaa"></span>';
+
+      try {
+        const res = await fetch('/api/speakers/remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mac })
+        });
+        const data = await res.json();
+
+        if (data.ok) {
+          card.style.opacity = '0';
+          card.style.transition = 'opacity 0.3s';
+          setTimeout(() => {
+            card.remove();
+            const list = document.getElementById('speakers-list');
+            if (!list.querySelector('.speaker-card')) {
+              list.innerHTML = '<p class="empty-state">Nenhuma caixa salva ainda.<br>Escaneie abaixo para adicionar a primeira.</p>';
+            }
+          }, 300);
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Remover';
+          alert('Não foi possível remover: ' + (data.error || 'Erro desconhecido.'));
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Remover';
+        alert('Erro de comunicação. Tente novamente.');
+      }
+    }
+
+    // --- Escanear dispositivos ---
     async function startScan() {
       const btn = document.getElementById('scan-btn');
       const status = document.getElementById('scan-status');
@@ -227,7 +334,7 @@
 
       btn.disabled = true;
       results.innerHTML = '';
-      status.innerHTML = '<span class="spinner"></span>Escaneando dispositivos próximos (~15s)...';
+      status.innerHTML = '<span class="spinner"></span>Procurando caixas de som próximas... (~15 segundos)';
 
       try {
         const res = await fetch('/api/scan', { method: 'POST' });
@@ -236,39 +343,44 @@
         status.innerHTML = '';
 
         if (!data.ok || !data.devices.length) {
-          status.innerHTML = 'Nenhum dispositivo encontrado. Verifique se a caixa está ligada e em modo de pareamento.';
+          status.innerHTML = 'Nenhuma caixa encontrada. Verifique se ela está ligada e em modo de pareamento (botão Bluetooth piscando) e tente novamente.';
         } else {
           results.innerHTML = data.devices.map(d => `
             <div class="device-card" id="card-${d.mac.replace(/:/g,'_')}">
               <div class="device-info">
                 <div class="device-name">${d.name}</div>
-                <div class="device-mac">${d.mac}</div>
+                <div class="device-hint">Toque em "Salvar" para conectar esta caixa</div>
               </div>
               <button class="btn-pair" id="pair-${d.mac.replace(/:/g,'_')}"
                 onclick="pairDevice('${d.mac}', '${d.name.replace(/'/g,"\\'")}')">
-                Conectar e Salvar
+                Salvar
               </button>
             </div>
           `).join('');
         }
       } catch (e) {
-        status.innerHTML = 'Erro ao escanear. Tente novamente.';
+        status.innerHTML = 'Erro ao procurar. Tente novamente.';
       } finally {
         btn.disabled = false;
       }
     }
 
+    // --- Parear dispositivo ---
     async function pairDevice(mac, name) {
       const id = mac.replace(/:/g, '_');
       const btn = document.getElementById('pair-' + id);
       const card = document.getElementById('card-' + id);
 
       btn.disabled = true;
-      btn.textContent = 'Conectando...';
+      btn.innerHTML = '<span class="spinner spinner-dark"></span>';
 
-      // Remove mensagens anteriores deste card
       const prev = document.getElementById('msg-' + id);
       if (prev) prev.remove();
+
+      // Aviso de que pode demorar
+      card.insertAdjacentHTML('afterend',
+        `<div id="msg-${id}" class="msg warn">⏳ Conectando... isso pode levar até 1 minuto. Não feche esta página.</div>`
+      );
 
       try {
         const res = await fetch('/api/pair', {
@@ -278,24 +390,32 @@
         });
         const data = await res.json();
 
-        if (data.ok) {
+        document.getElementById('msg-' + id)?.remove();
+
+        if (data.ok && !data.warning) {
           card.insertAdjacentHTML('afterend',
-            `<div id="msg-${id}" class="msg ok">✓ "${name}" salva como caixa principal. Recarregando...</div>`
+            `<div id="msg-${id}" class="msg ok">✓ "${name}" conectada e salva como caixa principal! A música vai começar em até 30 segundos.</div>`
           );
-          setTimeout(() => location.reload(), 1500);
+          setTimeout(() => location.reload(), 2500);
+        } else if (data.ok && data.warning) {
+          card.insertAdjacentHTML('afterend',
+            `<div id="msg-${id}" class="msg warn">⚠️ ${data.warning}</div>`
+          );
+          setTimeout(() => location.reload(), 3500);
         } else {
           card.insertAdjacentHTML('afterend',
-            `<div id="msg-${id}" class="msg err">Erro: ${data.error}</div>`
+            `<div id="msg-${id}" class="msg err">❌ ${data.error}</div>`
           );
           btn.disabled = false;
-          btn.textContent = 'Conectar e Salvar';
+          btn.textContent = 'Salvar';
         }
       } catch (e) {
+        document.getElementById('msg-' + id)?.remove();
         card.insertAdjacentHTML('afterend',
-          `<div id="msg-${id}" class="msg err">Erro de comunicação. Tente novamente.</div>`
+          `<div id="msg-${id}" class="msg err">❌ Erro de comunicação. Tente novamente.</div>`
         );
         btn.disabled = false;
-        btn.textContent = 'Conectar e Salvar';
+        btn.textContent = 'Salvar';
       }
     }
   </script>

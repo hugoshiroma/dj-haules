@@ -26,7 +26,6 @@
       margin: 0 auto;
     }
 
-    /* Header */
     .header {
       display: flex;
       align-items: center;
@@ -38,7 +37,6 @@
     .back-link { font-size: 0.8rem; color: var(--muted); text-decoration: none; }
     .back-link:hover { color: var(--text); }
 
-    /* Section titles */
     .section-title {
       font-size: 0.7rem;
       font-weight: 700;
@@ -58,11 +56,11 @@
       display: flex;
       align-items: center;
       gap: 0.75rem;
+      transition: border-color 0.3s;
     }
-    .status-icon {
-      font-size: 1.4rem;
-      flex-shrink: 0;
-    }
+    .status-card.connected { border-color: var(--ok); }
+    .status-card.offline   { border-color: var(--danger); }
+    .status-icon { font-size: 1.6rem; flex-shrink: 0; }
     .status-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.2rem; }
     .status-value { font-size: 0.95rem; font-weight: 600; }
     .status-value.connected { color: var(--ok); }
@@ -81,6 +79,58 @@
       color: #ddbb55;
     }
     .hotspot-notice strong { color: var(--accent); }
+
+    /* Rede salva */
+    .saved-network {
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 2rem;
+      font-size: 0.85rem;
+    }
+    .saved-network .label { color: var(--muted); font-size: 0.72rem; margin-bottom: 0.2rem; }
+    .saved-network .name { font-weight: 600; color: var(--accent); }
+
+    /* Lista de redes */
+    #networks-list { margin-top: 1rem; margin-bottom: 1.5rem; }
+    .network-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.4rem;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .network-card:hover { border-color: var(--accent); }
+    .network-card.active { border-color: var(--ok); }
+    .network-signal {
+      font-size: 1rem;
+      flex-shrink: 0;
+      width: 28px;
+      text-align: center;
+    }
+    .network-info { flex: 1; overflow: hidden; }
+    .network-name {
+      font-size: 0.875rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .network-meta { font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+    .network-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: var(--ok);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
 
     /* Form */
     .form-group { margin-bottom: 1.25rem; }
@@ -130,6 +180,22 @@
     .btn-primary:hover   { opacity: 0.85; }
     .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
+    .btn-secondary {
+      width: 100%;
+      padding: 0.75rem;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: 1.25rem;
+    }
+    .btn-secondary:hover:not(:disabled) { color: var(--text); border-color: #555; }
+    .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
     /* Spinner */
     .spinner {
       display: inline-block;
@@ -141,12 +207,16 @@
       margin-right: 6px;
       vertical-align: middle;
     }
+    .spinner-light {
+      border-color: var(--border);
+      border-top-color: var(--accent);
+    }
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* Messages */
     .msg { font-size: 0.82rem; margin-top: 0.75rem; padding: 0.6rem 0.9rem; border-radius: 8px; line-height: 1.5; }
-    .msg.ok  { background: #0f1f0f; border: 1px solid #2a5a2a; color: #77cc77; }
-    .msg.err { background: #1f0f0f; border: 1px solid #5a2a2a; color: #cc7777; }
+    .msg.ok   { background: #0f1f0f; border: 1px solid #2a5a2a; color: #77cc77; }
+    .msg.err  { background: #1f0f0f; border: 1px solid #5a2a2a; color: #cc7777; }
     .msg.info { background: #131008; border: 1px solid #4a3a00; color: #ccaa44; }
   </style>
 </head>
@@ -154,38 +224,56 @@
 
   <div class="header">
     <img src="/static/logo.png" alt="Haules">
-    <h1>Configurar Wi-Fi</h1>
+    <h1>Rede Wi-Fi</h1>
     <a href="/" class="back-link">← Voltar</a>
   </div>
 
   <!-- Status atual -->
-  <p class="section-title">Status da Conexão</p>
+  <p class="section-title">Conexão Atual</p>
   <div class="status-card" id="status-card">
     <div class="status-icon" id="status-icon">⏳</div>
     <div>
-      <div class="status-label">Rede</div>
+      <div class="status-label">Internet</div>
       <div class="status-value" id="status-value">Verificando...</div>
+    </div>
+  </div>
+
+  <!-- Rede salva -->
+  <div id="saved-network-box" style="display:none">
+    <p class="section-title">Rede Salva</p>
+    <div class="saved-network">
+      <div class="label">O DJ Haules vai se conectar a esta rede automaticamente:</div>
+      <div class="name" id="saved-network-name">—</div>
     </div>
   </div>
 
   <!-- Aviso modo hotspot -->
   <div class="hotspot-notice" id="hotspot-notice" style="display:none">
-    <strong>Modo de Recuperação Ativo</strong><br>
-    O DJ Haules está sem internet e criou uma rede Wi-Fi temporária para que você possa reconfigurar.<br><br>
-    Você está conectado ao hotspot <strong>"DJHaules-Config"</strong>.<br>
-    Preencha abaixo com os dados da nova rede do bar e clique em <strong>Salvar e Reconectar</strong>.
+    <strong>📡 DJ Haules sem internet</strong><br>
+    Ele criou uma rede Wi-Fi temporária chamada <strong>"DJHaules-Config"</strong> (senha: <strong>djhaules</strong>)
+    para que você possa reconectar.<br><br>
+    Conecte seu celular a essa rede e use o formulário abaixo para informar a nova senha do Wi-Fi do bar.
   </div>
 
+  <!-- Scan de redes -->
+  <p class="section-title">Trocar de Rede</p>
+
+  <button class="btn-secondary" id="scan-btn" onclick="scanNetworks()">
+    📶 Ver redes Wi-Fi disponíveis
+  </button>
+  <div id="networks-list"></div>
+
   <!-- Formulário de nova rede -->
-  <p class="section-title">Nova Rede Wi-Fi</p>
   <div class="form-group">
-    <label for="ssid">Nome da Rede (SSID)</label>
-    <input type="text" id="ssid" placeholder="Ex: Bar do Haules 5G" maxlength="32" autocomplete="off" autocorrect="off" spellcheck="false">
+    <label for="ssid">Nome da rede Wi-Fi</label>
+    <input type="text" id="ssid" placeholder="Ex: Bar do Haules 5G" maxlength="32"
+      autocomplete="off" autocorrect="off" spellcheck="false">
   </div>
   <div class="form-group">
-    <label for="password">Senha da Rede</label>
+    <label for="password">Senha da rede</label>
     <div class="password-wrap">
-      <input type="password" id="password" placeholder="Mínimo 8 caracteres" maxlength="63" autocomplete="new-password">
+      <input type="password" id="password" placeholder="Mínimo 8 caracteres" maxlength="63"
+        autocomplete="new-password">
       <button type="button" class="toggle-pass" onclick="togglePass()">mostrar</button>
     </div>
   </div>
@@ -199,34 +287,103 @@
         const res = await fetch('/api/wifi/status');
         const data = await res.json();
 
-        const icon  = document.getElementById('status-icon');
-        const value = document.getElementById('status-value');
-        const notice = document.getElementById('hotspot-notice');
+        const icon    = document.getElementById('status-icon');
+        const value   = document.getElementById('status-value');
+        const card    = document.getElementById('status-card');
+        const notice  = document.getElementById('hotspot-notice');
+        const savedBox = document.getElementById('saved-network-box');
+        const savedName = document.getElementById('saved-network-name');
+
+        card.className = 'status-card';
 
         if (!data.ok) {
           icon.textContent = '❓';
-          value.textContent = 'Não foi possível verificar';
+          value.textContent = 'Não foi possível verificar a conexão';
           value.className = 'status-value offline';
           return;
         }
 
         if (data.internet && data.ssid) {
           icon.textContent = '✅';
-          value.textContent = data.ssid;
+          value.textContent = `Conectado: ${data.ssid}`;
           value.className = 'status-value connected';
+          card.classList.add('connected');
+          savedBox.style.display = 'block';
+          savedName.textContent = data.ssid;
         } else if (data.hotspot) {
           icon.textContent = '📡';
-          value.textContent = 'Modo Recuperação (sem internet)';
+          value.textContent = 'Sem internet — modo de recuperação ativo';
           value.className = 'status-value hotspot';
           notice.style.display = 'block';
         } else {
           icon.textContent = '❌';
-          value.textContent = data.ssid ? `${data.ssid} (sem internet)` : 'Sem conexão';
+          value.textContent = data.ssid
+            ? `Conectado a "${data.ssid}", mas sem acesso à internet`
+            : 'Sem conexão Wi-Fi';
           value.className = 'status-value offline';
+          card.classList.add('offline');
+          if (data.ssid) {
+            savedBox.style.display = 'block';
+            savedName.textContent = data.ssid;
+          }
         }
       } catch (e) {
-        document.getElementById('status-value').textContent = 'Erro ao verificar status';
+        document.getElementById('status-value').textContent = 'Erro ao verificar conexão';
       }
+    }
+
+    function signalIcon(pct) {
+      if (pct >= 75) return '▂▄▆█';
+      if (pct >= 50) return '▂▄▆░';
+      if (pct >= 25) return '▂▄░░';
+      return '▂░░░';
+    }
+
+    function signalLabel(pct) {
+      if (pct >= 75) return 'Sinal excelente';
+      if (pct >= 50) return 'Sinal bom';
+      if (pct >= 25) return 'Sinal fraco';
+      return 'Sinal muito fraco';
+    }
+
+    async function scanNetworks() {
+      const btn = document.getElementById('scan-btn');
+      const list = document.getElementById('networks-list');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-light"></span>Procurando redes...';
+      list.innerHTML = '';
+
+      try {
+        const res = await fetch('/api/wifi/scan');
+        const data = await res.json();
+
+        if (!data.ok || !data.networks.length) {
+          list.innerHTML = '<p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Nenhuma rede encontrada. Verifique se o Wi-Fi do bar está ligado e tente novamente.</p>';
+        } else {
+          list.innerHTML = data.networks.map(n => `
+            <div class="network-card ${n.in_use ? 'active' : ''}"
+              onclick="selectNetwork('${n.ssid.replace(/'/g,"\\'")}')">
+              <div class="network-signal">${signalIcon(n.signal)}</div>
+              <div class="network-info">
+                <div class="network-name">${n.ssid}</div>
+                <div class="network-meta">${signalLabel(n.signal)}${n.security ? ' · Com senha' : ' · Sem senha'}</div>
+              </div>
+              ${n.in_use ? '<span class="network-badge">Conectada</span>' : ''}
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        list.innerHTML = '<p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem;">Erro ao buscar redes. Tente novamente.</p>';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '📶 Ver redes Wi-Fi disponíveis';
+      }
+    }
+
+    function selectNetwork(ssid) {
+      document.getElementById('ssid').value = ssid;
+      document.getElementById('password').focus();
     }
 
     async function saveWifi() {
@@ -236,7 +393,7 @@
       const msg      = document.getElementById('save-msg');
 
       if (!ssid) {
-        msg.innerHTML = '<div class="msg err">Informe o nome da rede (SSID).</div>';
+        msg.innerHTML = '<div class="msg err">Informe o nome da rede Wi-Fi antes de salvar.</div>';
         return;
       }
 
@@ -255,20 +412,21 @@
         if (data.ok) {
           msg.innerHTML = `
             <div class="msg ok">
-              ✓ Credenciais salvas! O DJ Haules está tentando conectar à rede "<strong>${ssid}</strong>".<br><br>
-              Aguarde até 30 segundos. Se a conexão for bem-sucedida, o hotspot será desativado automaticamente
-              e a música voltará a tocar.
+              ✓ Configuração salva! O DJ Haules está tentando se conectar à rede <strong>"${ssid}"</strong>.<br><br>
+              Aguarde até 30 segundos. Se a conexão funcionar, a música volta a tocar automaticamente.
+              Se não funcionar, verifique se o nome e a senha estão corretos e tente novamente.
             </div>`;
           btn.textContent = 'Salvo!';
-          setTimeout(loadStatus, 10000);
-          setTimeout(loadStatus, 25000);
+          // Atualiza status após 12s e 28s
+          setTimeout(loadStatus, 12000);
+          setTimeout(loadStatus, 28000);
         } else {
-          msg.innerHTML = `<div class="msg err">Erro: ${data.error}</div>`;
+          msg.innerHTML = `<div class="msg err">❌ ${data.error}</div>`;
           btn.disabled = false;
           btn.textContent = 'Salvar e Reconectar';
         }
       } catch (e) {
-        msg.innerHTML = '<div class="msg err">Erro de comunicação. Tente novamente.</div>';
+        msg.innerHTML = '<div class="msg err">❌ Erro de comunicação. Tente novamente.</div>';
         btn.disabled = false;
         btn.textContent = 'Salvar e Reconectar';
       }
@@ -286,7 +444,6 @@
       }
     }
 
-    // Carrega status ao abrir a página
     loadStatus();
   </script>
 

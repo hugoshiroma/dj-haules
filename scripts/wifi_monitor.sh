@@ -56,6 +56,16 @@ ensure_hotspot_profile_exists() {
     fi
 }
 
+enable_captive_portal() {
+    # Redireciona porta 80 para o Flask (8080) — ativa o captive portal
+    iptables -t nat -C PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port 8080 2>/dev/null \
+        || iptables -t nat -A PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port 8080
+}
+
+disable_captive_portal() {
+    iptables -t nat -D PREROUTING -i wlan0 -p tcp --dport 80 -j REDIRECT --to-port 8080 2>/dev/null || true
+}
+
 activate_hotspot() {
     if hotspot_active; then
         return 0
@@ -64,9 +74,10 @@ activate_hotspot() {
     ensure_hotspot_profile_exists
     nmcli con up "$HOTSPOT_CON" &>/dev/null
     if hotspot_active; then
-        log "Hotspot ativo em ${HOTSPOT_IP%/*}."
-        log "Conecte-se ao Wi-Fi '${HOTSPOT_SSID}' (senha: ${HOTSPOT_PASS}) e acesse:"
-        log "  http://${HOTSPOT_IP%/*}:8080/wifi"
+        enable_captive_portal
+        log "Hotspot ativo em ${HOTSPOT_IP%/*}. Captive portal habilitado."
+        log "Conecte-se ao Wi-Fi '${HOTSPOT_SSID}' (senha: ${HOTSPOT_PASS})"
+        log "O celular vai abrir a página de configuração automaticamente."
     else
         log "ERRO: Falha ao ativar hotspot."
     fi
@@ -77,6 +88,7 @@ deactivate_hotspot() {
         return 0
     fi
     log "Internet restaurada! Desativando hotspot..."
+    disable_captive_portal
     nmcli con down "$HOTSPOT_CON" &>/dev/null
     log "Hotspot desativado. Sistema operando normalmente."
 }
