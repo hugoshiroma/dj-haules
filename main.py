@@ -19,6 +19,7 @@ SPEAKERS_FILE = os.path.join(BASE_DIR, 'config', 'speakers.json')
 PLAYLISTS_FILE = os.path.join(BASE_DIR, 'config', 'playlists.json')
 ACTIVE_PLAYLIST_FILE = os.path.join(BASE_DIR, 'config', 'active_playlist.txt')
 PLAY_EVENT_FILE     = os.path.join(BASE_DIR, 'config', 'play_event.txt')
+BT_EVENT_FILE       = os.path.join(BASE_DIR, 'config', 'bt_event.txt')
 
 # --- Interface Web ---
 
@@ -365,6 +366,12 @@ def main():
                 connected_mac = connect_to_best_speaker(speakers)
                 if connected_mac:
                     needs_restart = True  # Nova conexão BT = reinício da playlist
+                    # Grava evento de BT conectado para o banner de loading da interface
+                    try:
+                        with open(BT_EVENT_FILE, 'w') as _f:
+                            _f.write(str(int(time.time())))
+                    except Exception:
+                        pass
                     # Aguarda o Raspotify registrar o dispositivo no Spotify após nova conexão BT
                     print("Bluetooth conectado. Aguardando Raspotify ficar disponível...")
                     time.sleep(20)
