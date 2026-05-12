@@ -91,6 +91,22 @@
     }
     .saved-network .label { color: var(--muted); font-size: 0.72rem; margin-bottom: 0.2rem; }
     .saved-network .name { font-weight: 600; color: var(--accent); }
+    .saved-network .row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 0.1rem; }
+    .btn-forget {
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.28rem 0.65rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s, border-color 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-forget:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+    .btn-forget.confirming { color: var(--danger); border-color: var(--danger); }
+    .btn-forget:disabled { opacity: 0.4; cursor: not-allowed; }
 
     /* Lista de redes */
     #networks-list { margin-top: 1rem; margin-bottom: 1.5rem; }
@@ -238,7 +254,10 @@
     <p class="section-title">Rede Salva</p>
     <div class="saved-network">
       <div class="label">O DJ Haules vai se conectar a esta rede automaticamente:</div>
-      <div class="name" id="saved-network-name">—</div>
+      <div class="row">
+        <div class="name" id="saved-network-name">—</div>
+        <button class="btn-forget" id="forget-btn" onclick="forgetNetwork()">Esquecer rede</button>
+      </div>
     </div>
   </div>
 
@@ -430,6 +449,50 @@
         msg.innerHTML = '<div class="msg err">❌ Erro de comunicação. Tente novamente.</div>';
         btn.disabled = false;
         btn.textContent = 'Salvar e Reconectar';
+      }
+    }
+
+    let forgetTimer = null;
+    async function forgetNetwork() {
+      const btn = document.getElementById('forget-btn');
+
+      // Primeiro toque: pede confirmação
+      if (!btn.dataset.confirmed) {
+        btn.dataset.confirmed = '1';
+        btn.textContent = 'Toque de novo para confirmar';
+        btn.classList.add('confirming');
+        forgetTimer = setTimeout(() => {
+          delete btn.dataset.confirmed;
+          btn.textContent = 'Esquecer rede';
+          btn.classList.remove('confirming');
+        }, 4000);
+        return;
+      }
+
+      // Segundo toque: executa
+      clearTimeout(forgetTimer);
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner spinner-light" style="border-top-color:var(--danger)"></span>Esquecendo...';
+
+      try {
+        const res = await fetch('/api/wifi/forget', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          document.getElementById('saved-network-box').style.display = 'none';
+          document.getElementById('hotspot-notice').style.display = 'block';
+          const msg = document.getElementById('save-msg');
+          msg.innerHTML = '<div class="msg info">📡 Rede esquecida. O DJ Haules criou a rede <strong>"DJHaules-Config"</strong> (senha: <strong>djhaules</strong>). Conecte-se a ela para reconfigurar o Wi-Fi.</div>';
+          // Atualiza status depois que o hotspot subir
+          setTimeout(loadStatus, 5000);
+        } else {
+          btn.disabled = false;
+          btn.textContent = 'Esquecer rede';
+          document.getElementById('save-msg').innerHTML = `<div class="msg err">❌ ${data.error}</div>`;
+        }
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Esquecer rede';
+        document.getElementById('save-msg').innerHTML = '<div class="msg err">❌ Erro de comunicação. Tente novamente.</div>';
       }
     }
 

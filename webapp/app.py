@@ -481,5 +481,20 @@ def api_wifi_save():
         return jsonify({'ok': False, 'error': str(e)})
 
 
+@app.route('/api/wifi/forget', methods=['POST'])
+def api_wifi_forget():
+    """Remove a rede Wi-Fi salva e ativa o hotspot de recuperação."""
+    try:
+        subprocess.run(
+            ['sudo', 'nmcli', 'con', 'delete', WIFI_CON_NAME],
+            capture_output=True, timeout=10
+        )
+        # Ativa hotspot em background — Pi perde conexão atual logo após esta resposta
+        subprocess.Popen(['sudo', 'nmcli', 'con', 'up', 'DJHaules-Hotspot'])
+        return jsonify({'ok': True})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
+
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8080)
