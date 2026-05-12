@@ -1,18 +1,17 @@
 [Unit]
-Description=DJ Haules — atualização automática ao desligar/reiniciar
-# Roda antes do desligamento, apenas se a rede já tiver sido encerrada ou não
-DefaultDependencies=no
-Before=shutdown.target reboot.target halt.target poweroff.target
-After=network.target
+Description=DJ Haules — atualização automática no boot
+After=network-online.target
+Wants=network-online.target
+Before=djhaules.service
 
 [Service]
 Type=oneshot
 User=seu_usuario
 WorkingDirectory=/home/seu_usuario/dj-haules
 ExecStart=/home/seu_usuario/dj-haules/scripts/auto_update.sh
-# Limite de 30s — se não concluir, o desligamento prossegue normalmente
-TimeoutStartSec=30
+# Limite de 60s — se não concluir, o boot continua normalmente
+TimeoutStartSec=60
 RemainAfterExit=yes
 
 [Install]
-WantedBy=halt.target reboot.target shutdown.target poweroff.target
+WantedBy=multi-user.target

@@ -1,6 +1,6 @@
 #!/bin/bash
-# Executa git pull antes de desligar/reiniciar, apenas se houver internet.
-# Roda como serviço systemd no shutdown — veja djhaules-update.service.
+# Executa git pull no boot, antes de iniciar o djhaules.service.
+# Roda como serviço systemd — veja djhaules-update.service.
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_TAG="djhaules-update"

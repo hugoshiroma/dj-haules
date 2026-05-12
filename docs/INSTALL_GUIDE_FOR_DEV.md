@@ -326,7 +326,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable djhaules-update.service
 ```
 
-A partir daí, toda vez que o Pi for desligado ou reiniciado (via `sudo reboot` ou desligamento físico normal), ele tenta fazer `git pull origin main` antes de encerrar. Se não houver internet, simplesmente ignora e desliga normalmente. Os logs ficam em:
+A partir daí, toda vez que o Pi for ligado (inclusive após corte de energia ou retirada da tomada), ele tenta fazer `git pull origin main` antes de iniciar o DJ Haules. Se não houver internet, simplesmente ignora e sobe normalmente. Os logs ficam em:
 
 ```bash
 sudo journalctl -t djhaules-update
