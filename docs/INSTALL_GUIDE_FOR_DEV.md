@@ -99,7 +99,6 @@ pip install -r requirements.txt
 
 ```bash
 cp config/settings.ini.template config/settings.ini
-cp config/speakers.json.template config/speakers.json
 nano config/settings.ini
 ```
 
@@ -113,6 +112,8 @@ Preencha os campos:
 | `APP > PLAYLIST_URI` | URI da playlist comunitária (ex: `spotify:playlist:XXXX`) |
 
 > **Como obter o `PLAYLIST_URI`:** abra a playlist no Spotify Desktop → botão direito → "Compartilhar" → "Copiar URI da playlist".
+
+O arquivo `config/playlists.json` (versionado) define os estilos musicais disponíveis na interface. A entrada com `"uri": null` usa o `PLAYLIST_URI` do `settings.ini` — é o slot para a playlist comunitária principal. As outras entradas têm URI própria. Edite esse arquivo para adicionar ou remover estilos.
 
 ---
 
@@ -268,50 +269,28 @@ sudo systemctl start djhaules-wifi.service
 
 Quando o Pi perder a internet, ele cria a rede **"DJHaules-Config"** (senha: `djhaules`). Ao conectar, o celular detecta o captive portal e **abre a página de configuração automaticamente**. Caso não abra, acesse manualmente `http://192.168.4.1/wifi`.
 
+Pela interface (`http://djhaules.local/wifi`), também é possível usar **"Esquecer rede"** para remover as credenciais salvas e retornar ao modo hotspot voluntariamente — útil para trocar de rede sem esperar a internet cair.
+
 ---
 
 ## 9. Pareando a Caixa de Som (via Interface Web)
 
 Com todos os serviços rodando:
 
-1. No celular conectado ao Wi-Fi do bar, acesse **http://djhaules.local:8080/speakers**
+1. No celular conectado ao Wi-Fi do bar, acesse **http://djhaules.local/speakers**
 2. Ligue a caixa de som e coloque-a em **modo de pareamento**
-3. Clique em **"Escanear Bluetooth"** e aguarde ~15 segundos
-4. Clique em **"Conectar e Salvar"** ao lado da sua caixa
+3. Clique em **"Procurar Caixas de Som por Bluetooth"** e aguarde ~15 segundos
+4. Clique em **"Conectar"** ao lado da sua caixa
 
-A caixa é salva e o DJ Haules começará a tocar automaticamente na próxima iteração (até 30s).
+A caixa é salva como prioridade 1 e o DJ Haules começará a tocar automaticamente em até 30s.
 
 > **Se o scan não encontrar nada:** abra um terminal no Pi, rode `bluetoothctl` e depois `scan on`. Mantenha aberto por 20s com a caixinha em modo pareamento. Depois feche e tente novamente pela interface web — o scan da webapp funciona melhor após uma sessão manual prévia.
 
 ---
 
-## 10. Verificando o Sistema Completo
+## 10. Atualização Automática no Boot
 
-```bash
-# Status de todos os serviços
-sudo systemctl status djhaules.service
-sudo systemctl status djhaules-wifi.service
-systemctl --user status raspotify
-
-# Logs em tempo real do DJ Haules
-sudo journalctl -u djhaules.service -f
-
-# Logs do Raspotify
-journalctl --user -u raspotify -f
-```
-
-O sistema está funcionando quando os logs do DJ Haules mostrarem:
-```
-Já conectado a 'Nome da Caixinha'.
-Iniciando playlist comunitária no dispositivo 'raspotify (djhaules)'...
-Playlist iniciada com sucesso!
-```
-
----
-
-## 11. Atualização Automática ao Desligar/Reiniciar
-
-O Pi pode atualizar o código do projeto automaticamente sempre que for reiniciado, desde que tenha internet. Assim, basta fazer `git push` do desenvolvimento e reiniciar o Pi para ele pegar as novidades sem intervenção manual.
+O Pi atualiza o código automaticamente ao ligar (inclusive após corte de energia), desde que tenha internet. Basta fazer `git push` do desenvolvimento e religar o Pi para ele pegar as novidades.
 
 ```bash
 # Tornar o script executável
@@ -326,13 +305,41 @@ sudo systemctl daemon-reload
 sudo systemctl enable djhaules-update.service
 ```
 
-A partir daí, toda vez que o Pi for ligado (inclusive após corte de energia ou retirada da tomada), ele tenta fazer `git pull origin main` antes de iniciar o DJ Haules. Se não houver internet, simplesmente ignora e sobe normalmente. Os logs ficam em:
+O serviço roda `git pull origin main --ff-only` antes do `djhaules.service` iniciar. Se não houver internet, ignora e sobe normalmente. Logs em:
 
 ```bash
 sudo journalctl -t djhaules-update
 ```
 
 > O `config/settings.ini` e `config/speakers.json` **não são sobrescritos** pelo `git pull` — suas configurações e caixas salvas ficam preservadas.
+
+---
+
+## 11. Verificando o Sistema Completo
+
+```bash
+# Status de todos os serviços
+sudo systemctl status djhaules.service
+sudo systemctl status djhaules-wifi.service
+sudo systemctl status djhaules-update.service
+systemctl --user status raspotify
+
+# Logs em tempo real do DJ Haules
+sudo journalctl -u djhaules.service -f
+
+# Logs do Raspotify
+journalctl --user -u raspotify -f
+
+# Logs do monitor Wi-Fi
+sudo journalctl -u djhaules-wifi.service -f
+```
+
+O sistema está funcionando quando os logs do DJ Haules mostrarem:
+```
+Já conectado a 'Nome da Caixinha'.
+Iniciando playlist comunitária no dispositivo 'raspotify (djhaules)'...
+Shuffle aplicado — música aleatória iniciada.
+```
 
 ---
 

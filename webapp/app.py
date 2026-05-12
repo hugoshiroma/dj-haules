@@ -1,6 +1,7 @@
 import json
 import re
 import time
+import threading
 import subprocess
 import os
 from flask import Flask, render_template, redirect, url_for, request, jsonify
@@ -483,17 +484,20 @@ def api_wifi_save():
 
 @app.route('/api/wifi/forget', methods=['POST'])
 def api_wifi_forget():
-    """Remove a rede Wi-Fi salva e ativa o hotspot de recuperação."""
-    try:
-        subprocess.run(
-            ['sudo', 'nmcli', 'con', 'delete', WIFI_CON_NAME],
-            capture_output=True, timeout=10
-        )
-        # Ativa hotspot em background — Pi perde conexão atual logo após esta resposta
-        subprocess.Popen(['sudo', 'nmcli', 'con', 'up', 'DJHaules-Hotspot'])
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)})
+    """Remove a rede Wi-Fi salva e ativa o hotspot de recuperação.
+
+    Executa em background com delay para garantir que a resposta HTTP chega ao
+    cliente antes do Pi derrubar a conexão Wi-Fi ao deletar o perfil.
+    """
+    def _do_forget():
+        time.sleep(1)
+        subprocess.run(['sudo', 'nmcli', 'con', 'delete', WIFI_CON_NAME],
+                       capture_output=True, timeout=10)
+        subprocess.run(['sudo', 'nmcli', 'con', 'up', 'DJHaules-Hotspot'],
+                       capture_output=True, timeout=15)
+
+    threading.Thread(target=_do_forget, daemon=True).start()
+    return jsonify({'ok': True})
 
 
 if __name__ == '__main__':
