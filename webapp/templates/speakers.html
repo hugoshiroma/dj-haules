@@ -292,6 +292,7 @@
       const id = mac.replace(/:/g, '_');
       const btn = document.getElementById('remove-' + id);
       const card = document.getElementById('card-saved-' + id);
+      const statusEl = document.getElementById('status-' + id);
 
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color:#aaa"></span>';
@@ -304,21 +305,43 @@
         });
         const data = await res.json();
 
-        if (data.ok) {
-          card.style.opacity = '0';
-          card.style.transition = 'opacity 0.3s';
-          setTimeout(() => {
-            card.remove();
-            const list = document.getElementById('speakers-list');
-            if (!list.querySelector('.speaker-card')) {
-              list.innerHTML = '<p class="empty-state">Nenhuma caixa salva ainda.<br>Escaneie abaixo para adicionar a primeira.</p>';
-            }
-          }, 300);
-        } else {
+        if (!data.ok) {
           btn.disabled = false;
           btn.textContent = 'Remover';
           alert('Não foi possível remover: ' + (data.error || 'Erro desconhecido.'));
+          return;
         }
+
+        // Mostra "Desconectando..." e aguarda confirmação real da desconexão BT
+        if (statusEl) {
+          statusEl.className = 'speaker-status';
+          statusEl.innerHTML = '<span class="dot"></span><span class="label">Desconectando...</span>';
+        }
+
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          let disconnected = true;
+          try {
+            const s = await fetch('/api/bt/status/' + mac);
+            const sd = await s.json();
+            disconnected = !sd.connected;
+          } catch (_) {}
+
+          if (disconnected || attempts >= 8) {
+            clearInterval(poll);
+            card.style.transition = 'opacity 0.3s';
+            card.style.opacity = '0';
+            setTimeout(() => {
+              card.remove();
+              const list = document.getElementById('speakers-list');
+              if (!list.querySelector('.speaker-card')) {
+                list.innerHTML = '<p class="empty-state">Nenhuma caixa salva ainda.<br>Escaneie abaixo para adicionar a primeira.</p>';
+              }
+            }, 300);
+          }
+        }, 1500);
+
       } catch (e) {
         btn.disabled = false;
         btn.textContent = 'Remover';

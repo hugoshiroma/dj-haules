@@ -244,26 +244,18 @@ def ensure_spotify_playing(sp, config, force_restart=False):
 
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
 
-        # Obtém total de faixas para escolher um offset aleatório.
         # Nota: start_playback com context_uri SEMPRE reseta o shuffle para OFF
-        # (comportamento documentado da API do Spotify). Por isso, shuffle(True)
-        # é chamado DEPOIS de start_playback, não antes.
-        random_offset = 0
-        try:
-            result = sp.playlist_tracks(playlist_uri, limit=1)
-            total_tracks = result.get('total', 0)
-            if total_tracks > 1:
-                random_offset = random.randint(0, total_tracks - 1)
-            print(f"Playlist com {total_tracks} faixas. Iniciando na posição {random_offset + 1}.")
-        except Exception as e:
-            print(f"Aviso: não foi possível obter total de faixas ({e}). Iniciando na posição 1.")
-
+        # (comportamento documentado da API do Spotify — issue #605).
+        # Sequência correta: start_playback → shuffle(True) → next_track.
+        # O next_track após shuffle(True) pula para a 1ª posição da fila
+        # embaralhada, que o Spotify gera aleatoriamente a cada chamada de
+        # shuffle(True). Isso garante música e ordem diferentes a cada início,
+        # independente de conseguir obter o total de faixas da playlist.
         sp.start_playback(
             device_id=target_device_id,
             context_uri=playlist_uri,
-            offset={'position': random_offset},
         )
-        print("Playlist iniciada com sucesso!")
+        print("Playlist iniciada. Aplicando shuffle...")
 
         try:
             time.sleep(2)
@@ -271,13 +263,21 @@ def ensure_spotify_playing(sp, config, force_restart=False):
         except Exception as e:
             print(f"Aviso: não foi possível ajustar volume ({e}).")
 
-        # shuffle(True) chamado APÓS start_playback — o Spotify gera um novo seed
-        # de aleatoriedade aqui, randomizando as faixas subsequentes.
         try:
             time.sleep(1)
             sp.shuffle(True, device_id=target_device_id)
         except Exception as e:
             print(f"Aviso: não foi possível ativar shuffle ({e}).")
+
+        # Pula para a 1ª música da fila embaralhada — aqui está a aleatoriedade real.
+        # O Spotify gera um novo seed a cada shuffle(True), então next_track()
+        # sempre cai em uma música diferente.
+        try:
+            time.sleep(1)
+            sp.next_track(device_id=target_device_id)
+            print("Shuffle aplicado — música aleatória iniciada.")
+        except Exception as e:
+            print(f"Aviso: não foi possível pular para música aleatória ({e}).")
 
         try:
             time.sleep(1)
@@ -324,6 +324,16 @@ def main():
 
         if current_state == 'ENABLED':
             # 1. Bluetooth primeiro — independente do Spotify
+
+            # Verifica se a caixa conectada foi removida pelo usuário via interface web
+            if connected_mac and not any(s['mac'].upper() == connected_mac.upper() for s in speakers):
+                print(f"Caixa {connected_mac} removida da lista. Desconectando...")
+                with bt_lock:
+                    subprocess.run(['bluetoothctl', 'disconnect', connected_mac],
+                                   capture_output=True, timeout=10)
+                connected_mac = None
+                needs_restart = True
+
             if connected_mac and not is_bluetooth_connected(connected_mac):
                 print(f"Caixa {connected_mac} desconectou. Tentando reconectar ou buscar outra...")
                 connected_mac = None

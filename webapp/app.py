@@ -292,14 +292,27 @@ def api_speakers_status():
 
 @app.route('/api/speakers/remove', methods=['POST'])
 def api_speakers_remove():
-    """Remove uma caixa salva (versão JSON para chamadas AJAX)."""
+    """Remove uma caixa salva e inicia a desconexão Bluetooth."""
     data = request.get_json() or {}
     mac = (data.get('mac') or '').upper()
     if not mac:
         return jsonify({'ok': False, 'error': 'MAC não informado.'})
     speakers = [s for s in load_speakers() if s['mac'].upper() != mac]
     save_speakers(speakers)
+    # Dispara desconexão BT em background — o loop principal também vai detectar
+    with bt_lock:
+        try:
+            subprocess.run(['bluetoothctl', 'disconnect', mac], capture_output=True, timeout=10)
+        except Exception:
+            pass
     return jsonify({'ok': True})
+
+
+@app.route('/api/bt/status/<mac>')
+def api_bt_status(mac):
+    """Verifica se um MAC específico ainda está conectado via Bluetooth."""
+    connected = is_bt_connected(mac.upper())
+    return jsonify({'connected': connected})
 
 
 # --- Rotas de configuração Wi-Fi ---
