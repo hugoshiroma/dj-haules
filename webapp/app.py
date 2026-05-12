@@ -358,10 +358,6 @@ def wifi_page():
 def api_wifi_scan():
     """Lista as redes Wi-Fi disponíveis com nome, força de sinal e se está em uso."""
     try:
-        subprocess.run(
-            ['sudo', 'nmcli', 'dev', 'wifi', 'rescan'],
-            capture_output=True, timeout=10
-        )
         output = subprocess.check_output(
             ['nmcli', '-t', '-f', 'IN-USE,SSID,SIGNAL,SECURITY', 'dev', 'wifi', 'list'],
             text=True, timeout=10
