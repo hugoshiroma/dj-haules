@@ -23,7 +23,7 @@ Modelos mais potentes (Pi 3B+, Pi 4) também funcionam.
     - Use o Imager para gravar o **Raspberry Pi OS Desktop (64-bit)** em um cartão microSD.
     - > ⚠️ **Use a versão Desktop, não a Lite.** O sistema de áudio PipeWire (necessário para Bluetooth) só está disponível na versão Desktop.
     - Nas configurações avançadas (ícone da engrenagem), configure:
-        - **Hostname:** `dj-haules` (o endereço ficará `dj-haules.local`)
+        - **Hostname:** `djhaules` (o endereço ficará `djhaules.local`)
         - **Usuário e senha:** defina um usuário (ex: `haules`) e **obrigatoriamente uma senha** — o SSH exige isso
         - **Habilite o SSH**
         - **Configure o Wi-Fi** com os dados da rede do bar
@@ -32,7 +32,7 @@ Modelos mais potentes (Pi 3B+, Pi 4) também funcionam.
     - Insira o cartão no Pi e ligue-o.
     - Após alguns minutos, acesse via SSH:
         ```bash
-        ssh haules@dj-haules.local
+        ssh haules@djhaules.local
         ```
 
 ---
@@ -109,7 +109,7 @@ Preencha os campos:
 |---|---|
 | `SUPABASE > URL` | URL do projeto Supabase |
 | `SUPABASE > ANON_KEY` | Chave anônima do Supabase |
-| `APP > DEVICE_NAME` | `raspotify (dj-haules)` — deve bater exatamente com o nome definido no Raspotify |
+| `APP > DEVICE_NAME` | `raspotify (djhaules)` — deve bater exatamente com o nome definido no Raspotify |
 | `APP > PLAYLIST_URI` | URI da playlist comunitária (ex: `spotify:playlist:XXXX`) |
 
 > **Como obter o `PLAYLIST_URI`:** abra a playlist no Spotify Desktop → botão direito → "Compartilhar" → "Copiar URI da playlist".
@@ -180,7 +180,7 @@ Wants=pipewire.service
 
 [Service]
 ExecStart=/usr/bin/librespot \
-  --name "raspotify (dj-haules)" \
+  --name "raspotify (djhaules)" \
   --backend alsa \
   --system-cache /var/lib/raspotify \
   --quiet
@@ -239,7 +239,7 @@ sudo systemctl status djhaules.service
 ```
 
 > O `ExecStartPre` com `rfkill` garante que o Bluetooth nunca fique bloqueado após um reboot.
-> O `ExecStartPre` com `setup_iptables.sh` redireciona porta 80 → 8080, permitindo acessar a interface via `http://dj-haules.local` sem precisar digitar a porta.
+> O `ExecStartPre` com `setup_iptables.sh` redireciona porta 80 → 8080, permitindo acessar a interface via `http://djhaules.local` sem precisar digitar a porta.
 
 ---
 
@@ -274,7 +274,7 @@ Quando o Pi perder a internet, ele cria a rede **"DJHaules-Config"** (senha: `dj
 
 Com todos os serviços rodando:
 
-1. No celular conectado ao Wi-Fi do bar, acesse **http://dj-haules.local:8080/speakers**
+1. No celular conectado ao Wi-Fi do bar, acesse **http://djhaules.local:8080/speakers**
 2. Ligue a caixa de som e coloque-a em **modo de pareamento**
 3. Clique em **"Escanear Bluetooth"** e aguarde ~15 segundos
 4. Clique em **"Conectar e Salvar"** ao lado da sua caixa
@@ -303,7 +303,7 @@ journalctl --user -u raspotify -f
 O sistema está funcionando quando os logs do DJ Haules mostrarem:
 ```
 Já conectado a 'Nome da Caixinha'.
-Iniciando playlist comunitária no dispositivo 'raspotify (dj-haules)'...
+Iniciando playlist comunitária no dispositivo 'raspotify (djhaules)'...
 Playlist iniciada com sucesso!
 ```
 

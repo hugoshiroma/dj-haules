@@ -1,5 +1,5 @@
 #!/bin/bash
-# Redireciona porta 80 → 8080 para que http://dj-haules.local funcione sem precisar
+# Redireciona porta 80 → 8080 para que http://djhaules.local funcione sem precisar
 # digitar a porta. Roda como ExecStartPre no djhaules.service a cada inicialização.
 
 # Localiza o iptables (caminho varia entre distros e versões do Pi OS)

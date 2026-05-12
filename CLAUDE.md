@@ -7,7 +7,7 @@ Este arquivo serve como guia de contexto para o Claude sobre o projeto "DJ-Haule
 - **O que é:** Sistema de automação de playlist de música ambiente para o Bar do Haules. Roda em um **Raspberry Pi**, conecta a uma caixa de som Bluetooth e toca a **playlist comunitária do bar** (gerenciada pelo `haules-landing-page`) via Spotify/Raspotify.
 - **Objetivo:** Manter a música tocando de forma autônoma, sem intervenção manual, a partir da playlist que os clientes constroem pelo site do bar.
 - **Integração:** Consome a mesma conta Spotify e playlist comunitária gerenciadas pelas Edge Functions do Supabase usadas pelo `haules-landing-page`.
-- **Controle:** Interface web em `http://dj-haules.local:8080` para ativar/desativar o sistema (ex: para shows ao vivo).
+- **Controle:** Interface web em `http://djhaules.local` para ativar/desativar o sistema (ex: para shows ao vivo).
 
 ## 2. Tecnologias e Arquitetura
 
@@ -19,7 +19,7 @@ Este arquivo serve como guia de contexto para o Claude sobre o projeto "DJ-Haule
 - **Áudio/Música:**
   - **Raspotify:** Cliente Spotify Connect — faz o Pi aparecer como dispositivo de áudio no Spotify.
   - **Bluetooth:** Conecta-se a caixas de som via MAC address. Suporta múltiplas caixas com fallback automático por prioridade.
-- **Framework Web:** Flask (serve a interface de controle em `http://dj-haules.local:8080`).
+- **Framework Web:** Flask (serve a interface de controle em `http://djhaules.local`).
 - **Spotify SDK:** `spotipy` — wrapper Python para a Spotify Web API.
 - **Configuração:** `config/settings.ini` (credenciais Supabase e configurações do app) + `config/speakers.json` (lista de caixas Bluetooth, gerenciada pela webapp).
 
@@ -116,7 +116,7 @@ cp config/settings.ini.template config/settings.ini
 cp config/speakers.json.template config/speakers.json
 # Editar settings.ini com PLAYLIST_URI e chaves Supabase
 python main.py
-# Acessar http://dj-haules.local:8080/speakers para parear a primeira caixa
+# Acessar http://djhaules.local/speakers para parear a primeira caixa
 ```
 
 ## 9. Operação em Produção (Serviço systemd)
