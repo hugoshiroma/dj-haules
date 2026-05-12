@@ -18,6 +18,7 @@ STATE_FILE = os.path.join(BASE_DIR, 'config', 'state.txt')
 SPEAKERS_FILE = os.path.join(BASE_DIR, 'config', 'speakers.json')
 PLAYLISTS_FILE = os.path.join(BASE_DIR, 'config', 'playlists.json')
 ACTIVE_PLAYLIST_FILE = os.path.join(BASE_DIR, 'config', 'active_playlist.txt')
+PLAY_EVENT_FILE     = os.path.join(BASE_DIR, 'config', 'play_event.txt')
 
 # --- Interface Web ---
 
@@ -294,6 +295,9 @@ def ensure_spotify_playing(sp, config, force_restart=False):
             time.sleep(1)
             sp.next_track(device_id=target_device_id)
             print("Shuffle aplicado — música aleatória iniciada.")
+            # Grava timestamp do evento de play confirmado para o popup da interface
+            with open(PLAY_EVENT_FILE, 'w') as _f:
+                _f.write(str(int(time.time())))
         except Exception as e:
             print(f"Aviso: não foi possível pular para música aleatória ({e}).")
 

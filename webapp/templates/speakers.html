@@ -372,11 +372,11 @@
             <div class="device-card" id="card-${d.mac.replace(/:/g,'_')}">
               <div class="device-info">
                 <div class="device-name">${d.name}</div>
-                <div class="device-hint">Toque em "Salvar" para conectar esta caixa</div>
+                <div class="device-hint">Toque em "Conectar" para conectar esta caixa</div>
               </div>
               <button class="btn-pair" id="pair-${d.mac.replace(/:/g,'_')}"
                 onclick="pairDevice('${d.mac}', '${d.name.replace(/'/g,"\\'")}')">
-                Salvar
+                Conectar
               </button>
             </div>
           `).join('');
@@ -430,7 +430,7 @@
             `<div id="msg-${id}" class="msg err">❌ ${data.error}</div>`
           );
           btn.disabled = false;
-          btn.textContent = 'Salvar';
+          btn.textContent = 'Conectar';
         }
       } catch (e) {
         document.getElementById('msg-' + id)?.remove();
@@ -438,7 +438,7 @@
           `<div id="msg-${id}" class="msg err">❌ Erro de comunicação. Tente novamente.</div>`
         );
         btn.disabled = false;
-        btn.textContent = 'Salvar';
+        btn.textContent = 'Conectar';
       }
     }
   </script>

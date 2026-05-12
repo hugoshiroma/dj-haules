@@ -15,6 +15,7 @@ STATE_FILE = os.path.join(BASE_DIR, 'config', 'state.txt')
 SPEAKERS_FILE = os.path.join(BASE_DIR, 'config', 'speakers.json')
 PLAYLISTS_FILE = os.path.join(BASE_DIR, 'config', 'playlists.json')
 ACTIVE_PLAYLIST_FILE = os.path.join(BASE_DIR, 'config', 'active_playlist.txt')
+PLAY_EVENT_FILE     = os.path.join(BASE_DIR, 'config', 'play_event.txt')
 
 
 # --- Helpers de estado ---
@@ -306,6 +307,19 @@ def api_speakers_remove():
         except Exception:
             pass
     return jsonify({'ok': True})
+
+
+@app.route('/api/play/event')
+def api_play_event():
+    """Retorna o timestamp do último evento de play confirmado no speaker."""
+    try:
+        if os.path.exists(PLAY_EVENT_FILE):
+            with open(PLAY_EVENT_FILE) as f:
+                ts = f.read().strip()
+            return jsonify({'ok': True, 'ts': int(ts)})
+    except Exception:
+        pass
+    return jsonify({'ok': True, 'ts': 0})
 
 
 @app.route('/api/bt/status/<mac>')
