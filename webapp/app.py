@@ -165,7 +165,7 @@ def api_scan():
         except Exception:
             pass
 
-        # MACs que tiveram atividade real durante o scan (em alcance agora)
+        # MACs com atividade durante o scan via eventos do stdout
         clean = re.sub(r'\x1b\[[0-9;]*[mK]', '', raw_output)
         active_macs = set()
         for line in clean.split('\n'):
@@ -179,21 +179,33 @@ def api_scan():
             )
             saved_macs = {s['mac'].upper() for s in load_speakers()}
             mac_pattern = re.compile(r'^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$')
+
             devices = []
             for line in output.strip().split('\n'):
                 match = re.match(r'Device\s+([0-9A-Fa-f:]{17})\s+(.+)', line)
-                if match:
-                    mac = match.group(1).upper()
-                    name = match.group(2).strip()
-                    if mac_pattern.match(name):
-                        continue
-                    if mac in saved_macs:
-                        continue
-                    # Se capturamos output do scan, exige atividade real durante ele;
-                    # se não capturamos (fallback), mostra tudo que não está salvo
-                    if active_macs and mac not in active_macs:
-                        continue
+                if not match:
+                    continue
+                mac  = match.group(1).upper()
+                name = match.group(2).strip()
+                if mac_pattern.match(name) or mac in saved_macs:
+                    continue
+
+                if mac in active_macs:
+                    # Emitiu eventos durante o scan → estava em alcance
                     devices.append({'mac': mac, 'name': name})
+                else:
+                    # Não emitiu eventos (connectable mas não discoverable).
+                    # Dispositivos pareados: o BlueZ guarda RSSI de tudo que viu
+                    # durante o scan — se tem RSSI é porque estava em alcance.
+                    try:
+                        info = subprocess.check_output(
+                            ['bluetoothctl', 'info', mac], text=True, timeout=3
+                        )
+                        if 'RSSI:' in info:
+                            devices.append({'mac': mac, 'name': name})
+                    except Exception:
+                        pass
+
             return jsonify({'ok': True, 'devices': devices})
         except Exception as e:
             return jsonify({'ok': False, 'error': str(e), 'devices': []})
