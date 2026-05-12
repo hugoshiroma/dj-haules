@@ -354,19 +354,35 @@ def api_wifi_scan():
 def api_wifi_status():
     """Retorna o estado atual da conectividade Wi-Fi."""
     try:
+        # Detecta hotspot ativo pelo nome da conexão
         active = subprocess.check_output(
             ['nmcli', '-t', '-f', 'NAME,TYPE,STATE', 'con', 'show', '--active'],
             text=True, timeout=5
         )
+        hotspot = any(
+            line.split(':')[0] == 'DJHaules-Hotspot'
+            for line in active.strip().split('\n')
+            if line
+        )
+
+        # Obtém o SSID real da interface Wi-Fi (somente em modo estação)
         ssid = None
-        hotspot = False
-        for line in active.strip().split('\n'):
-            parts = line.split(':')
-            if len(parts) >= 3 and parts[1] == '802-11-wireless':
-                if parts[0] == 'DJHaules-Hotspot':
-                    hotspot = True
-                else:
-                    ssid = parts[0]
+        if not hotspot:
+            try:
+                wifi_out = subprocess.check_output(
+                    ['nmcli', '-t', '-f', 'ACTIVE,SSID', 'dev', 'wifi'],
+                    text=True, timeout=5
+                )
+                for wline in wifi_out.strip().split('\n'):
+                    # split com maxsplit=1 preserva SSIDs que contenham ':'
+                    wparts = wline.split(':', 1)
+                    if len(wparts) == 2 and wparts[0] == 'yes':
+                        candidate = wparts[1].strip()
+                        if candidate:
+                            ssid = candidate
+                            break
+            except Exception:
+                pass
 
         connectivity = subprocess.check_output(
             ['nmcli', '-t', '-f', 'CONNECTIVITY', 'general', 'status'],

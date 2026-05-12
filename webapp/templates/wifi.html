@@ -108,13 +108,7 @@
     }
     .network-card:hover { border-color: var(--accent); }
     .network-card.active { border-color: var(--ok); }
-    .network-signal {
-      font-size: 1rem;
-      flex-shrink: 0;
-      width: 28px;
-      text-align: center;
-    }
-    .network-info { flex: 1; overflow: hidden; }
+    .network-info { flex: 1; overflow: hidden; min-width: 0; }
     .network-name {
       font-size: 0.875rem;
       font-weight: 600;
@@ -130,6 +124,7 @@
       letter-spacing: 0.06em;
       text-transform: uppercase;
       white-space: nowrap;
+      flex-shrink: 0;
     }
 
     /* Form */
@@ -364,10 +359,9 @@
           list.innerHTML = data.networks.map(n => `
             <div class="network-card ${n.in_use ? 'active' : ''}"
               onclick="selectNetwork('${n.ssid.replace(/'/g,"\\'")}')">
-              <div class="network-signal">${signalIcon(n.signal)}</div>
               <div class="network-info">
                 <div class="network-name">${n.ssid}</div>
-                <div class="network-meta">${signalLabel(n.signal)}${n.security ? ' · Com senha' : ' · Sem senha'}</div>
+                <div class="network-meta">${signalIcon(n.signal)} ${signalLabel(n.signal)}${n.security ? ' · Com senha' : ' · Sem senha'}</div>
               </div>
               ${n.in_use ? '<span class="network-badge">Conectada</span>' : ''}
             </div>

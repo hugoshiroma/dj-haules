@@ -205,24 +205,32 @@ def create_spotify_client(config):
         return spotipy.Spotify(auth=access_token)
     return None
 
-def ensure_spotify_playing(sp, config):
-    """Garante que a playlist ativa está tocando no dispositivo correto."""
+def ensure_spotify_playing(sp, config, force_restart=False):
+    """
+    Garante que a playlist ativa está tocando no dispositivo correto.
+
+    force_restart=True: ignora o estado atual e sempre reinicia a playlist numa
+    posição aleatória. Usar na primeira conexão BT de cada sessão para evitar
+    que o Spotify retome automaticamente da última posição salva.
+
+    Retorna True se start_playback foi chamado, False caso contrário.
+    """
     device_name = config.get('APP', 'DEVICE_NAME')
     playlist_uri = get_active_playlist_uri(config)
 
     try:
-        # 1. Verificar o estado atual de reprodução
         playback = sp.current_playback()
 
-        # Se já estiver tocando a playlist certa no dispositivo certo, não faz nada
-        if (playback
-                and playback.get('is_playing')
-                and playback.get('device', {}).get('name') == device_name
-                and playback.get('context') is not None
-                and playback.get('context', {}).get('uri') == playlist_uri):
-            return
+        # Retorno antecipado somente se não for reinício forçado:
+        # Spotify já está tocando a playlist certa no dispositivo certo.
+        if not force_restart:
+            if (playback
+                    and playback.get('is_playing')
+                    and playback.get('device', {}).get('name') == device_name
+                    and playback.get('context') is not None
+                    and playback.get('context', {}).get('uri') == playlist_uri):
+                return False
 
-        # 2. Encontrar o dispositivo (o próprio Pi rodando raspotify)
         devices = sp.devices()
         target_device_id = None
         for device in devices['devices']:
@@ -232,26 +240,23 @@ def ensure_spotify_playing(sp, config):
 
         if not target_device_id:
             print(f"Dispositivo Spotify '{device_name}' não encontrado. Aguardando Raspotify registrar o dispositivo...")
-            return
+            return False
 
-        # 3. Iniciar a playlist em posição aleatória
-        # shuffle(True) sozinho ainda começa pela faixa 0 — precisamos de um offset
-        # aleatório para garantir que cada reinício começa numa música diferente.
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
-        try:
-            sp.shuffle(True, device_id=target_device_id)
-            time.sleep(1)
-        except Exception as e:
-            print(f"Aviso: não foi possível ativar shuffle ({e}).")
 
+        # Obtém total de faixas para escolher um offset aleatório.
+        # Nota: start_playback com context_uri SEMPRE reseta o shuffle para OFF
+        # (comportamento documentado da API do Spotify). Por isso, shuffle(True)
+        # é chamado DEPOIS de start_playback, não antes.
         random_offset = 0
         try:
-            playlist_info = sp.playlist(playlist_uri, fields='tracks.total')
-            total_tracks = playlist_info['tracks']['total']
+            result = sp.playlist_tracks(playlist_uri, limit=1)
+            total_tracks = result.get('total', 0)
             if total_tracks > 1:
                 random_offset = random.randint(0, total_tracks - 1)
+            print(f"Playlist com {total_tracks} faixas. Iniciando na posição {random_offset + 1}.")
         except Exception as e:
-            print(f"Aviso: não foi possível obter total de faixas ({e}).")
+            print(f"Aviso: não foi possível obter total de faixas ({e}). Iniciando na posição 1.")
 
         sp.start_playback(
             device_id=target_device_id,
@@ -259,21 +264,34 @@ def ensure_spotify_playing(sp, config):
             offset={'position': random_offset},
         )
         print("Playlist iniciada com sucesso!")
+
         try:
             time.sleep(2)
             sp.volume(50, device_id=target_device_id)
         except Exception as e:
             print(f"Aviso: não foi possível ajustar volume ({e}).")
+
+        # shuffle(True) chamado APÓS start_playback — o Spotify gera um novo seed
+        # de aleatoriedade aqui, randomizando as faixas subsequentes.
         try:
-            time.sleep(2)
+            time.sleep(1)
+            sp.shuffle(True, device_id=target_device_id)
+        except Exception as e:
+            print(f"Aviso: não foi possível ativar shuffle ({e}).")
+
+        try:
+            time.sleep(1)
             sp.repeat('context', device_id=target_device_id)
         except Exception as e:
             print(f"Aviso: não foi possível configurar repeat ({e}).")
+
+        return True
 
     except Exception as e:
         print(f"Erro ao verificar/iniciar reprodução no Spotify: {e}")
         if isinstance(e, spotipy.exceptions.SpotifyException) and e.http_status == 401:
             raise e
+        return False
 
 # --- Loop Principal ---
 
@@ -282,6 +300,9 @@ def main():
     config = get_config()
     sp = None
     connected_mac = None
+    # Força reinício da playlist na primeira conexão BT de cada sessão,
+    # evitando que o Spotify retome automaticamente da última posição salva.
+    needs_restart = True
 
     # Inicia a interface web em uma thread separada
     webapp_thread = threading.Thread(target=run_webapp, daemon=True)
@@ -306,13 +327,15 @@ def main():
             if connected_mac and not is_bluetooth_connected(connected_mac):
                 print(f"Caixa {connected_mac} desconectou. Tentando reconectar ou buscar outra...")
                 connected_mac = None
+                needs_restart = True  # Nova conexão BT = reinício da playlist
 
             if not connected_mac:
                 connected_mac = connect_to_best_speaker(speakers)
                 if connected_mac:
+                    needs_restart = True  # Nova conexão BT = reinício da playlist
                     # Aguarda o Raspotify registrar o dispositivo no Spotify após nova conexão BT
                     print("Bluetooth conectado. Aguardando Raspotify ficar disponível...")
-                    time.sleep(10)
+                    time.sleep(20)
 
             if not connected_mac:
                 print("Não foi possível conectar a nenhuma caixa. Tentando novamente em 5 segundos...")
@@ -329,7 +352,9 @@ def main():
                     continue
 
             try:
-                ensure_spotify_playing(sp, config)
+                started = ensure_spotify_playing(sp, config, force_restart=needs_restart)
+                if started:
+                    needs_restart = False
             except spotipy.exceptions.SpotifyException as e:
                 if e.http_status == 401:
                     print("Token do Spotify expirou. Obtendo um novo...")
@@ -339,9 +364,10 @@ def main():
         else:  # current_state == 'DISABLED'
             disconnect_all_speakers(speakers)
             connected_mac = None
-            print("Serviço em modo de espera. Verificando novamente em 30 segundos.")
+            needs_restart = True  # Ao reativar, reinicia playlist do zero
+            print("Serviço em modo de espera. Verificando novamente em 15 segundos.")
 
-        time.sleep(30)
+        time.sleep(15)
 
 if __name__ == "__main__":
     main()
