@@ -133,53 +133,51 @@ def remove_speaker():
 
 # --- API para scan e pair (chamadas AJAX) ---
 
-def _get_known_macs():
-    """Retorna o conjunto de MACs já conhecidos pelo bluetoothd."""
-    try:
-        out = subprocess.check_output(['bluetoothctl', 'devices'], text=True, timeout=5)
-        macs = set()
-        for line in out.strip().split('\n'):
-            m = re.match(r'Device\s+([0-9A-Fa-f:]{17})\s+', line)
-            if m:
-                macs.add(m.group(1).upper())
-        return macs
-    except Exception:
-        return set()
-
-
 @app.route('/api/scan', methods=['POST'])
 def api_scan():
     """Escaneia dispositivos Bluetooth próximos por 15 segundos.
 
-    Retorna apenas dispositivos DESCOBERTOS NESTE scan — não mostra
-    dispositivos já conhecidos/pareados anteriormente.
+    Captura o stdout do bluetoothctl para identificar MACs que emitiram
+    eventos durante o scan ([NEW] ou [CHG]) — esses estão fisicamente em
+    alcance. Dispositivos já salvos como caixas são omitidos.
     """
     with bt_lock:
-        # Snapshot de MACs já conhecidos antes do scan para filtrá-los depois
-        known_before = _get_known_macs()
-
+        raw_output = ''
         try:
-            scan_proc = subprocess.Popen(
+            proc = subprocess.Popen(
                 ['bluetoothctl'],
                 stdin=subprocess.PIPE,
-                stdout=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
                 text=True
             )
-            scan_proc.stdin.write('scan on\n')
-            scan_proc.stdin.flush()
+            proc.stdin.write('scan on\n')
+            proc.stdin.flush()
             time.sleep(15)
-            scan_proc.stdin.write('scan off\n')
-            scan_proc.stdin.write('exit\n')
-            scan_proc.stdin.flush()
-            scan_proc.wait(timeout=5)
+            proc.stdin.write('scan off\n')
+            proc.stdin.write('quit\n')
+            proc.stdin.flush()
+            try:
+                raw_output, _ = proc.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                raw_output, _ = proc.communicate()
         except Exception:
             pass
+
+        # MACs que tiveram atividade real durante o scan (em alcance agora)
+        clean = re.sub(r'\x1b\[[0-9;]*[mK]', '', raw_output)
+        active_macs = set()
+        for line in clean.split('\n'):
+            m = re.match(r'\[(NEW|CHG)\]\s+Device\s+([0-9A-Fa-f:]{17})', line)
+            if m:
+                active_macs.add(m.group(2).upper())
 
         try:
             output = subprocess.check_output(
                 ['bluetoothctl', 'devices'], text=True, timeout=5
             )
+            saved_macs = {s['mac'].upper() for s in load_speakers()}
             mac_pattern = re.compile(r'^([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}$')
             devices = []
             for line in output.strip().split('\n'):
@@ -189,8 +187,11 @@ def api_scan():
                     name = match.group(2).strip()
                     if mac_pattern.match(name):
                         continue
-                    # Exclui dispositivos que já eram conhecidos antes do scan
-                    if mac in known_before:
+                    if mac in saved_macs:
+                        continue
+                    # Se capturamos output do scan, exige atividade real durante ele;
+                    # se não capturamos (fallback), mostra tudo que não está salvo
+                    if active_macs and mac not in active_macs:
                         continue
                     devices.append({'mac': mac, 'name': name})
             return jsonify({'ok': True, 'devices': devices})
