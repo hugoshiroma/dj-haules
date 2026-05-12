@@ -133,12 +133,32 @@ def remove_speaker():
 
 # --- API para scan e pair (chamadas AJAX) ---
 
+def _get_known_macs():
+    """Retorna o conjunto de MACs já conhecidos pelo bluetoothd."""
+    try:
+        out = subprocess.check_output(['bluetoothctl', 'devices'], text=True, timeout=5)
+        macs = set()
+        for line in out.strip().split('\n'):
+            m = re.match(r'Device\s+([0-9A-Fa-f:]{17})\s+', line)
+            if m:
+                macs.add(m.group(1).upper())
+        return macs
+    except Exception:
+        return set()
+
+
 @app.route('/api/scan', methods=['POST'])
 def api_scan():
-    """Escaneia dispositivos Bluetooth próximos por 15 segundos."""
+    """Escaneia dispositivos Bluetooth próximos por 15 segundos.
+
+    Retorna apenas dispositivos DESCOBERTOS NESTE scan — não mostra
+    dispositivos já conhecidos/pareados anteriormente.
+    """
     with bt_lock:
+        # Snapshot de MACs já conhecidos antes do scan para filtrá-los depois
+        known_before = _get_known_macs()
+
         try:
-            # Modo interativo via stdin — mantém o scan ativo igual ao terminal manual
             scan_proc = subprocess.Popen(
                 ['bluetoothctl'],
                 stdin=subprocess.PIPE,
@@ -167,8 +187,10 @@ def api_scan():
                 if match:
                     mac = match.group(1).upper()
                     name = match.group(2).strip()
-                    # Ignora entradas sem nome resolvido (nome é apenas o MAC)
                     if mac_pattern.match(name):
+                        continue
+                    # Exclui dispositivos que já eram conhecidos antes do scan
+                    if mac in known_before:
                         continue
                     devices.append({'mac': mac, 'name': name})
             return jsonify({'ok': True, 'devices': devices})

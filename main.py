@@ -296,9 +296,21 @@ def ensure_spotify_playing(sp, config, force_restart=False):
             time.sleep(1)
             sp.next_track(device_id=target_device_id)
             print("Shuffle aplicado — música aleatória iniciada.")
-            # Grava timestamp do evento de play confirmado para o popup da interface
-            with open(PLAY_EVENT_FILE, 'w') as _f:
-                _f.write(str(int(time.time())))
+            # Confirma com o Spotify que o áudio está de fato tocando no dispositivo
+            # antes de sinalizar o banner — evita falsos positivos
+            time.sleep(2)
+            try:
+                playback = sp.current_playback()
+                if (playback
+                        and playback.get('is_playing')
+                        and playback.get('device', {}).get('id') == target_device_id):
+                    with open(PLAY_EVENT_FILE, 'w') as _f:
+                        _f.write(str(int(time.time())))
+                    print("Play confirmado pelo Spotify — banner ativado.")
+                else:
+                    print("Aviso: next_track OK mas Spotify não confirmou playback ativo no dispositivo.")
+            except Exception as e_chk:
+                print(f"Aviso: não foi possível confirmar playback ({e_chk}).")
         except Exception as e:
             print(f"Aviso: não foi possível pular para música aleatória ({e}).")
 
