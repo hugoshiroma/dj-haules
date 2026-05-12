@@ -328,10 +328,16 @@
     }
 
     function signalIcon(pct) {
-      if (pct >= 75) return '▂▄▆█';
-      if (pct >= 50) return '▂▄▆░';
-      if (pct >= 25) return '▂▄░░';
-      return '▂░░░';
+      const level = pct >= 75 ? 4 : pct >= 50 ? 3 : pct >= 25 ? 2 : 1;
+      const color = level >= 3 ? '#44aa44' : level === 2 ? '#ffaa00' : '#cc4444';
+      const dim   = 'rgba(255,255,255,0.15)';
+      // Paths do ícone WiFi (Lucide Icons, MIT) — arco externo, médio, interno + ponto
+      return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke-width="2.2" stroke-linecap="round" style="flex-shrink:0">
+        <path stroke="${level >= 4 ? color : dim}" d="M1.42 9a16 16 0 0 1 21.16 0"/>
+        <path stroke="${level >= 3 ? color : dim}" d="M5 12.55a11 11 0 0 1 14.08 0"/>
+        <path stroke="${level >= 2 ? color : dim}" d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+        <circle cx="12" cy="20" r="2" fill="${color}" stroke="none"/>
+      </svg>`;
     }
 
     function signalLabel(pct) {
@@ -359,9 +365,10 @@
           list.innerHTML = data.networks.map(n => `
             <div class="network-card ${n.in_use ? 'active' : ''}"
               onclick="selectNetwork('${n.ssid.replace(/'/g,"\\'")}')">
+              ${signalIcon(n.signal)}
               <div class="network-info">
                 <div class="network-name">${n.ssid}</div>
-                <div class="network-meta">${signalIcon(n.signal)} ${signalLabel(n.signal)}${n.security ? ' · Com senha' : ' · Sem senha'}</div>
+                <div class="network-meta">${signalLabel(n.signal)}${n.security ? ' · Com senha' : ' · Sem senha'}</div>
               </div>
               ${n.in_use ? '<span class="network-badge">Conectada</span>' : ''}
             </div>

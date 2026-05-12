@@ -244,17 +244,35 @@ def ensure_spotify_playing(sp, config, force_restart=False):
 
         print(f"Iniciando playlist comunitária no dispositivo '{device_name}'...")
 
-        # Nota: start_playback com context_uri SEMPRE reseta o shuffle para OFF
-        # (comportamento documentado da API do Spotify — issue #605).
-        # Sequência correta: start_playback → shuffle(True) → next_track.
-        # O next_track após shuffle(True) pula para a 1ª posição da fila
-        # embaralhada, que o Spotify gera aleatoriamente a cada chamada de
-        # shuffle(True). Isso garante música e ordem diferentes a cada início,
-        # independente de conseguir obter o total de faixas da playlist.
-        sp.start_playback(
-            device_id=target_device_id,
-            context_uri=playlist_uri,
-        )
+        # Spotify caches o shuffle seed por (dispositivo, playlist). Se a mesma
+        # playlist for reiniciada no mesmo dispositivo (ex: após reboot), shuffle(True)
+        # gera a mesma ordem e next_track() cai sempre na mesma música.
+        # Solução: iniciar em um offset aleatório quebra o cache — mesmo que
+        # shuffle(True) reutilize o seed, a posição inicial é diferente.
+        # fallback=randint(0,19): não precisa do total, funciona para qualquer
+        # playlist com 20+ faixas. Se a playlist for menor, o catch 400 usa offset=0.
+        random_offset = random.randint(0, 19)
+        try:
+            result = sp.playlist_tracks(playlist_uri, limit=1)
+            total = result.get('total', 0)
+            if total > 1:
+                random_offset = random.randint(0, total - 1)
+            print(f"Playlist com {total} faixas. Offset inicial: {random_offset + 1}.")
+        except Exception as e:
+            print(f"Aviso: total de faixas indisponível ({type(e).__name__}). Usando offset {random_offset + 1}.")
+
+        try:
+            sp.start_playback(
+                device_id=target_device_id,
+                context_uri=playlist_uri,
+                offset={'position': random_offset},
+            )
+        except spotipy.exceptions.SpotifyException as e:
+            if e.http_status == 400:
+                print(f"Offset {random_offset + 1} fora do range. Iniciando do início.")
+                sp.start_playback(device_id=target_device_id, context_uri=playlist_uri)
+            else:
+                raise
         print("Playlist iniciada. Aplicando shuffle...")
 
         try:
