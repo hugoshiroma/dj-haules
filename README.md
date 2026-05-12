@@ -29,7 +29,7 @@ Quando outra pessoa precisar usar a caixa de som, siga os passos abaixo.
 
 1.  **Pegue um celular** que esteja conectado no Wi-Fi do bar.
 2.  **Abra o navegador de internet** (Chrome, Safari, etc).
-3.  Na barra de endereço, digite: **http://djhaules.local** e aperte "Ir".
+3.  Na barra de endereço, digite: **http://dj-haules.local** e aperte "Ir".
     *   *Se esse endereço não funcionar, tente este: http://192.168.1.50*
 4.  Vai aparecer uma página igual a essa:
 
@@ -40,7 +40,7 @@ Quando outra pessoa precisar usar a caixa de som, siga os passos abaixo.
 
 ### Acabou o show? Voltando ao normal...
 
-1.  Acesse a mesma página **http://djhaules.local** no celular.
+1.  Acesse a mesma página **http://dj-haules.local** no celular.
 2.  Clique no botão **ATIVAR DJ HAULES**.
 3.  O DJ Haules voltará a tocar a música do bar assim que a caixa de som estiver livre novamente.
 
@@ -53,7 +53,7 @@ Algo deu errado? Calma, aqui estão as soluções para os problemas mais comuns.
 | Problema                                    | O que fazer?                                                                                                                                                                                                                         |
 | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **A música não começou a tocar.**           | 1. Verifique se a **caixa de som principal** está ligada.<br>2. Verifique se a caixinha do **DJ Haules** está com a luz acesa.<br>3. Aguarde 1 ou 2 minutos. Às vezes, a conexão pode demorar um pouco.<br>4. Se nada der certo, **reinicie**: tire o DJ Haules da tomada, espere 10 segundos e ligue de novo. Ele vai tentar tudo sozinho outra vez. |
-| **A página de controle não abre.**          | 1. Verifique se o seu celular está conectado no **Wi-Fi do bar**.<br>2. Tente digitar o endereço de novo: **http://djhaules.local**<br>3. Se não funcionar, tente o endereço alternativo: **http://192.168.1.50**<br>4. Se a senha do Wi-Fi foi trocada, veja a seção abaixo. |
+| **A página de controle não abre.**          | 1. Verifique se o seu celular está conectado no **Wi-Fi do bar**.<br>2. Tente digitar o endereço de novo: **http://dj-haules.local**<br>3. Se não funcionar, tente o endereço alternativo: **http://192.168.1.50**<br>4. Se a senha do Wi-Fi foi trocada, veja a seção abaixo. |
 | **A música está travando ou picotando.**    | 1. Verifique se a caixinha do DJ Haules não está muito longe da caixa de som principal.<br>2. Evite deixar objetos de metal ou muitos líquidos na frente da caixinha, pois isso pode atrapalhar o sinal do Bluetooth.                 |
 
 <br>

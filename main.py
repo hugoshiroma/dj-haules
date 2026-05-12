@@ -353,7 +353,7 @@ def main():
         speakers = load_speakers()
 
         if not speakers:
-            print("Nenhuma caixa de som configurada. Acesse http://djhaules.local:8080/speakers para adicionar.")
+            print("Nenhuma caixa de som configurada. Acesse http://dj-haules.local:8080/speakers para adicionar.")
             time.sleep(30)
             continue
 

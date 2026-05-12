@@ -7,7 +7,7 @@ Este arquivo serve como guia de contexto para o Claude sobre o projeto "DJ-Haule
 - **O que é:** Sistema de automação de playlist de música ambiente para o Bar do Haules. Roda em um **Raspberry Pi**, conecta a uma caixa de som Bluetooth e toca playlists via Spotify/Raspotify.
 - **Objetivo:** Manter a música tocando de forma autônoma, sem intervenção manual. A playlist principal ("Brasilidades") é alimentada pelos clientes via `haules-landing-page`; outras playlists são selecionáveis pela interface.
 - **Integração:** Consome a mesma conta Spotify e playlist comunitária gerenciadas pelas Edge Functions do Supabase usadas pelo `haules-landing-page`.
-- **Controle:** Interface web em `http://djhaules.local` para ativar/desativar o sistema, trocar playlist, gerenciar caixas e configurar Wi-Fi.
+- **Controle:** Interface web em `http://dj-haules.local` para ativar/desativar o sistema, trocar playlist, gerenciar caixas e configurar Wi-Fi.
 
 ## 2. Tecnologias e Arquitetura
 
@@ -17,10 +17,10 @@ Este arquivo serve como guia de contexto para o Claude sobre o projeto "DJ-Haule
 - **Gerenciador de Pacotes:** `pip` com `requirements.txt` (`flask`, `spotipy`, `requests`).
 - **Ambiente:** Virtual environment Python (`.venv`).
 - **Áudio/Música:**
-  - **Raspotify (librespot):** Cliente Spotify Connect — faz o Pi aparecer como dispositivo de áudio no Spotify com o nome `raspotify (djhaules)`.
+  - **Raspotify (librespot):** Cliente Spotify Connect — faz o Pi aparecer como dispositivo de áudio no Spotify com o nome `raspotify (dj-haules)`.
   - **PipeWire:** Sistema de áudio que roteia o Raspotify para o Bluetooth. Roda como serviço de usuário.
   - **Bluetooth:** Conecta-se a caixas de som via MAC address com fallback automático por prioridade.
-- **Framework Web:** Flask, porta 8080. Redireciona porta 80 → 8080 via iptables (setup_iptables.sh), permitindo acesso via `http://djhaules.local` sem digitar porta.
+- **Framework Web:** Flask, porta 8080. Redireciona porta 80 → 8080 via iptables (setup_iptables.sh), permitindo acesso via `http://dj-haules.local` sem digitar porta.
 - **Spotify SDK:** `spotipy` — wrapper Python para a Spotify Web API.
 
 ## 3. Arquitetura de Execução
@@ -218,7 +218,7 @@ CLAUDE.md                        # Este arquivo — contexto do projeto para o C
 |---|---|---|
 | `SUPABASE` | `URL` | URL base do projeto Supabase |
 | `SUPABASE` | `ANON_KEY` | Chave anônima pública do Supabase |
-| `APP` | `DEVICE_NAME` | Nome do dispositivo Raspotify no Spotify — deve bater exatamente com `--name` no serviço do Raspotify (ex: `raspotify (djhaules)`) |
+| `APP` | `DEVICE_NAME` | Nome do dispositivo Raspotify no Spotify — deve bater exatamente com `--name` no serviço do Raspotify (ex: `raspotify (dj-haules)`) |
 | `APP` | `PLAYLIST_URI` | URI da playlist comunitária principal (ex: `spotify:playlist:XXXX`) — usada pela playlist com `uri: null` no `playlists.json` |
 
 ### `config/speakers.json`
