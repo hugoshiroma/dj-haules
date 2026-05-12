@@ -53,8 +53,9 @@
 
   let state      = 'hidden';
   let hideTimer  = null;
-  let lastBtTs   = parseInt(localStorage.getItem('_dj_bt')   || '0');
-  let lastPlayTs = parseInt(localStorage.getItem('_dj_play') || '0');
+  let lastBtTs   = parseInt(localStorage.getItem('_dj_bt')        || '0');
+  let lastPlayTs = parseInt(localStorage.getItem('_dj_play')      || '0');
+  let successAt  = parseInt(localStorage.getItem('_dj_success_at')|| '0');
 
   function show(newState, html) {
     if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
@@ -69,6 +70,29 @@
     hideTimer = null;
   }
 
+  function enterSuccess() {
+    successAt = Math.floor(Date.now() / 1000);
+    localStorage.setItem('_dj_success_at', successAt);
+    show('success', '🎵 Tocando na caixinha!');
+    hideTimer = setTimeout(hide, 5000);
+  }
+
+  function enterLoading() {
+    show('loading', '<span class="_dj_spin"></span>Dando play na fila...');
+  }
+
+  // Restaura estado ao navegar entre páginas usando localStorage
+  const nowInit = Math.floor(Date.now() / 1000);
+  if (successAt > 0 && (nowInit - successAt) < 5) {
+    // Sucesso ainda dentro da janela de 5s — retoma com o tempo restante
+    const remaining = Math.max(100, 5000 - (nowInit - successAt) * 1000);
+    show('success', '🎵 Tocando na caixinha!');
+    hideTimer = setTimeout(hide, remaining);
+  } else if (lastBtTs > 0 && (nowInit - lastBtTs) < 180 && lastPlayTs <= lastBtTs) {
+    // BT conectou recentemente e play ainda não foi confirmado → loading
+    enterLoading();
+  }
+
   async function poll() {
     try {
       const res  = await fetch('/api/status/banner');
@@ -78,14 +102,15 @@
       const { bt_ts, play_ts } = data;
       const now = Math.floor(Date.now() / 1000);
 
-      // Play recente e novo → sucesso (janela de 30s para evitar repetir ao abrir a página)
+      // Play recente e novo → sucesso
       if (play_ts > lastPlayTs && (now - play_ts) < 30) {
         lastPlayTs = play_ts;
         lastBtTs   = Math.max(lastBtTs, bt_ts);
         localStorage.setItem('_dj_play', lastPlayTs);
         localStorage.setItem('_dj_bt',   lastBtTs);
-        show('success', '🎵 Tocando na caixinha!');
-        hideTimer = setTimeout(hide, 5000);
+        if (state !== 'success') {
+          enterSuccess();
+        }
         return;
       }
 
@@ -93,8 +118,8 @@
       if (bt_ts > lastBtTs && (now - bt_ts) < 180 && play_ts <= bt_ts) {
         lastBtTs = bt_ts;
         localStorage.setItem('_dj_bt', lastBtTs);
-        if (state !== 'success') {
-          show('loading', '<span class="_dj_spin"></span>Dando play na fila...');
+        if (state !== 'success' && state !== 'loading') {
+          enterLoading();
         }
         return;
       }
@@ -103,8 +128,7 @@
       if (state === 'loading' && play_ts > lastPlayTs) {
         lastPlayTs = play_ts;
         localStorage.setItem('_dj_play', lastPlayTs);
-        show('success', '🎵 Tocando na caixinha!');
-        hideTimer = setTimeout(hide, 5000);
+        enterSuccess();
       }
 
     } catch (_) {}
