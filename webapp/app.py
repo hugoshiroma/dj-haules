@@ -290,6 +290,13 @@ def api_pair():
     speakers.insert(0, {'name': name, 'mac': mac, 'priority': 1})
     save_speakers(speakers)
 
+    # Dispara o banner de loading imediatamente — o loop principal vai tocar em seguida
+    try:
+        with open(BT_EVENT_FILE, 'w') as _f:
+            _f.write(str(int(time.time())))
+    except Exception:
+        pass
+
     if not has_audio:
         return jsonify({
             'ok': True,
