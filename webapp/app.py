@@ -400,6 +400,24 @@ def wifi_page():
 def api_wifi_scan():
     """Lista as redes Wi-Fi disponíveis com nome, força de sinal e se está em uso."""
     try:
+        # Em modo hotspot o NM não faz scans em background (rádio em AP mode).
+        # Precisamos forçar um rescan para ter cache fresco. Em modo estação
+        # o rescan é omitido porque derruba o Wi-Fi por ~10s no Pi Zero 2W.
+        active = subprocess.check_output(
+            ['nmcli', '-t', '-f', 'NAME,TYPE,STATE', 'con', 'show', '--active'],
+            text=True, timeout=5
+        )
+        in_hotspot = any(
+            line.split(':')[0] == 'DJHaules-Hotspot'
+            for line in active.strip().split('\n') if line
+        )
+        if in_hotspot:
+            subprocess.run(
+                ['sudo', 'nmcli', 'dev', 'wifi', 'rescan'],
+                capture_output=True, timeout=15
+            )
+            import time as _time; _time.sleep(3)
+
         output = subprocess.check_output(
             ['nmcli', '-t', '-f', 'IN-USE,SSID,SIGNAL,SECURITY', 'dev', 'wifi', 'list'],
             text=True, timeout=10
