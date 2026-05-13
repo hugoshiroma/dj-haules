@@ -213,6 +213,12 @@
     <a href="/" class="back-link">← Voltar</a>
   </div>
 
+  {% if disabled %}
+  <div style="background:#1a1000;border:1px solid #ffaa00;border-radius:10px;padding:0.75rem 1rem;margin-bottom:1.5rem;font-size:0.82rem;color:#ffaa00;line-height:1.5;">
+    ⚠️ O DJ Haules está <strong>desativado</strong>. Caixas pareadas aqui serão desconectadas pelo sistema. <a href="/" style="color:#ffaa00;text-decoration:underline;">Ativar na página principal →</a>
+  </div>
+  {% endif %}
+
   <!-- Caixas salvas -->
   <p class="section-title">Caixas Salvas</p>
   <div class="speakers-list" id="speakers-list">

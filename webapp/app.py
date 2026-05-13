@@ -122,7 +122,7 @@ def api_playlist_select():
 @app.route('/speakers')
 def speakers_page():
     speakers = load_speakers()
-    return render_template('speakers.html', speakers=speakers)
+    return render_template('speakers.html', speakers=speakers, disabled=get_state() == 'DISABLED')
 
 @app.route('/speakers/remove', methods=['POST'])
 def remove_speaker():
