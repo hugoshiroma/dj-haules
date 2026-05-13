@@ -303,12 +303,14 @@ def api_pair():
     speakers.insert(0, {'name': name, 'mac': mac, 'priority': 1})
     save_speakers(speakers)
 
-    # Dispara o banner de loading imediatamente — o loop principal vai tocar em seguida
-    try:
-        with open(BT_EVENT_FILE, 'w') as _f:
-            _f.write(str(int(time.time())))
-    except Exception:
-        pass
+    # Dispara o banner de loading imediatamente — só faz sentido se o serviço estiver ativo.
+    # Se DISABLED, o loop principal vai desconectar em seguida e o banner ficaria preso.
+    if get_state() == 'ENABLED':
+        try:
+            with open(BT_EVENT_FILE, 'w') as _f:
+                _f.write(str(int(time.time())))
+        except Exception:
+            pass
 
     if not has_audio:
         return jsonify({

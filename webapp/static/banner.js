@@ -149,6 +149,12 @@
         lastPlayTs = play_ts;
         localStorage.setItem('_dj_play', lastPlayTs);
         enterSuccess();
+        return;
+      }
+
+      // Loading expirado sem play confirmado → some silenciosamente
+      if (state === 'loading' && lastBtTs > 0 && (now - lastBtTs) >= 180) {
+        hide();
       }
 
     } catch (_) {}
