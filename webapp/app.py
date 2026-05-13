@@ -16,8 +16,9 @@ STATE_FILE = os.path.join(BASE_DIR, 'config', 'state.txt')
 SPEAKERS_FILE = os.path.join(BASE_DIR, 'config', 'speakers.json')
 PLAYLISTS_FILE = os.path.join(BASE_DIR, 'config', 'playlists.json')
 ACTIVE_PLAYLIST_FILE = os.path.join(BASE_DIR, 'config', 'active_playlist.txt')
-PLAY_EVENT_FILE     = os.path.join(BASE_DIR, 'config', 'play_event.txt')
-BT_EVENT_FILE       = os.path.join(BASE_DIR, 'config', 'bt_event.txt')
+PLAY_EVENT_FILE       = os.path.join(BASE_DIR, 'config', 'play_event.txt')
+BT_EVENT_FILE         = os.path.join(BASE_DIR, 'config', 'bt_event.txt')
+BT_DISCONNECT_FILE    = os.path.join(BASE_DIR, 'config', 'bt_disconnect_event.txt')
 
 
 # --- Helpers de estado ---
@@ -365,8 +366,9 @@ def api_status_banner():
             pass
         return 0
     return jsonify({'ok': True,
-                    'bt_ts':   read_ts(BT_EVENT_FILE),
-                    'play_ts': read_ts(PLAY_EVENT_FILE)})
+                    'bt_ts':          read_ts(BT_EVENT_FILE),
+                    'play_ts':        read_ts(PLAY_EVENT_FILE),
+                    'disconnect_ts':  read_ts(BT_DISCONNECT_FILE)})
 
 
 @app.route('/api/play/event')

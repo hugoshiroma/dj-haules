@@ -31,6 +31,11 @@
       border-bottom: 2px solid #44aa44;
       color: #77cc77;
     }
+    #dj-banner.error #dj-banner-body {
+      background: #1f0d0d;
+      border-bottom: 2px solid #cc4444;
+      color: #ff7777;
+    }
     ._dj_spin {
       width: 11px; height: 11px;
       border: 2px solid rgba(255,170,0,0.25);
@@ -55,6 +60,7 @@
   let hideTimer  = null;
   let lastBtTs   = parseInt(localStorage.getItem('_dj_bt')        || '0');
   let lastPlayTs = parseInt(localStorage.getItem('_dj_play')      || '0');
+  let lastDiscTs = parseInt(localStorage.getItem('_dj_disc')      || '0');
   let successAt  = parseInt(localStorage.getItem('_dj_success_at')|| '0');
 
   function show(newState, html) {
@@ -81,6 +87,11 @@
     show('loading', '<span class="_dj_spin"></span>Dando play na fila...');
   }
 
+  function enterError() {
+    if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    show('error', '⚠️ Caixinha desconectada. Reconectando...');
+  }
+
   // Restaura estado ao navegar entre páginas usando localStorage
   const nowInit = Math.floor(Date.now() / 1000);
   if (successAt > 0 && (nowInit - successAt) < 5) {
@@ -88,6 +99,9 @@
     const remaining = Math.max(100, 5000 - (nowInit - successAt) * 1000);
     show('success', '🎵 Tocando na caixinha!');
     hideTimer = setTimeout(hide, remaining);
+  } else if (lastDiscTs > lastPlayTs) {
+    // Desconexão mais recente que último play → erro persiste entre navegações
+    enterError();
   } else if (lastBtTs > 0 && (nowInit - lastBtTs) < 180 && lastPlayTs <= lastBtTs) {
     // BT conectou recentemente e play ainda não foi confirmado → loading
     enterLoading();
@@ -99,28 +113,34 @@
       const data = await res.json();
       if (!data.ok) return;
 
-      const { bt_ts, play_ts } = data;
+      const bt_ts        = data.bt_ts        || 0;
+      const play_ts      = data.play_ts      || 0;
+      const disconnect_ts = data.disconnect_ts || 0;
       const now = Math.floor(Date.now() / 1000);
 
-      // Play recente e novo → sucesso
+      // Play recente e novo → sucesso (limpa qualquer estado de erro/loading)
       if (play_ts > lastPlayTs && (now - play_ts) < 30) {
         lastPlayTs = play_ts;
         lastBtTs   = Math.max(lastBtTs, bt_ts);
         localStorage.setItem('_dj_play', lastPlayTs);
         localStorage.setItem('_dj_bt',   lastBtTs);
-        if (state !== 'success') {
-          enterSuccess();
-        }
+        if (state !== 'success') enterSuccess();
         return;
       }
 
-      // BT recente e novo, play ainda pendente → loading
-      if (bt_ts > lastBtTs && (now - bt_ts) < 180 && play_ts <= bt_ts) {
+      // Desconexão nova e mais recente que o último play → erro
+      if (disconnect_ts > lastDiscTs && disconnect_ts > lastPlayTs) {
+        lastDiscTs = disconnect_ts;
+        localStorage.setItem('_dj_disc', lastDiscTs);
+        enterError();
+        return;
+      }
+
+      // BT recente e novo, mais recente que a última desconexão → loading (sai do erro)
+      if (bt_ts > lastBtTs && (now - bt_ts) < 180 && play_ts <= bt_ts && bt_ts >= disconnect_ts) {
         lastBtTs = bt_ts;
         localStorage.setItem('_dj_bt', lastBtTs);
-        if (state !== 'success' && state !== 'loading') {
-          enterLoading();
-        }
+        if (state !== 'success') enterLoading();
         return;
       }
 

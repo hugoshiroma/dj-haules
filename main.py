@@ -18,8 +18,9 @@ STATE_FILE = os.path.join(BASE_DIR, 'config', 'state.txt')
 SPEAKERS_FILE = os.path.join(BASE_DIR, 'config', 'speakers.json')
 PLAYLISTS_FILE = os.path.join(BASE_DIR, 'config', 'playlists.json')
 ACTIVE_PLAYLIST_FILE = os.path.join(BASE_DIR, 'config', 'active_playlist.txt')
-PLAY_EVENT_FILE     = os.path.join(BASE_DIR, 'config', 'play_event.txt')
-BT_EVENT_FILE       = os.path.join(BASE_DIR, 'config', 'bt_event.txt')
+PLAY_EVENT_FILE       = os.path.join(BASE_DIR, 'config', 'play_event.txt')
+BT_EVENT_FILE         = os.path.join(BASE_DIR, 'config', 'bt_event.txt')
+BT_DISCONNECT_FILE    = os.path.join(BASE_DIR, 'config', 'bt_disconnect_event.txt')
 
 # --- Interface Web ---
 
@@ -371,6 +372,11 @@ def main():
 
             if connected_mac and not is_bluetooth_connected(connected_mac):
                 print(f"Caixa {connected_mac} desconectou. Tentando reconectar ou buscar outra...")
+                try:
+                    with open(BT_DISCONNECT_FILE, 'w') as _f:
+                        _f.write(str(int(time.time())))
+                except Exception:
+                    pass
                 connected_mac = None
                 needs_restart = True  # Nova conexão BT = reinício da playlist
 
