@@ -17,10 +17,12 @@ Existem duas formas de usar o DJ Haules: o **Modo Automático** (para o dia a di
 
 ### Modo Automático (O Normal)
 
-Este é o modo padrão. Não precisa fazer nada!
+Este é o modo padrão.
+
+> **Atenção (primeira vez):** Para a música tocar, o Spotify precisa estar apontando para o DJ Haules como dispositivo de áudio. Abra o Spotify no celular → toque qualquer música → toque o **ícone de caixinha** no player → selecione **"raspotify (dj-haules)"**. Isso só precisa ser feito uma vez.
 
 1.  **Ligue a caixa de som principal** do bar.
-2.  Aguarde uns 30 segundos. A luz da caixinha do DJ Haules vai piscar e depois ficar acesa direto.
+2.  Aguarde uns 2 minutos. O DJ Haules vai conectar no Bluetooth e dar play sozinho.
 3.  Pronto! A música da playlist do bar vai começar a tocar sozinha.
 
 ### Modo Manual (Para Shows, DJs ou Eventos)

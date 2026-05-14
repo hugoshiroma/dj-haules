@@ -73,9 +73,27 @@ Agora que o DJ Haules está na internet, vamos conectar a caixa de som.
 
 ---
 
-### Passo 4 — Pronto!
+### Passo 4 — Confirmar no Spotify (etapa obrigatória)
 
-Após salvar a caixa, o DJ Haules vai começar a tocar em até 30 segundos. A partir de agora, basta ligar a caixa de som — a música vai começar sozinha.
+Para a música tocar, o Spotify precisa saber que deve usar o DJ Haules como dispositivo de áudio. Isso precisa ser feito uma vez após a instalação:
+
+**1.** Abre o **Spotify** no celular (conectado no Wi-Fi do bar).
+
+**2.** Toca qualquer música para o player aparecer na tela.
+
+**3.** No player, procura o **ícone de caixinha de som** (ou "Dispositivos disponíveis") e toca nele.
+
+**4.** Na lista que aparecer, seleciona **"raspotify (dj-haules)"**.
+
+A partir daí, o DJ Haules assume o controle e a música começa automaticamente. Não precisa fazer isso de novo — o sistema lembra.
+
+> **Não aparece "raspotify (dj-haules)" na lista?** Aguarda mais 1 minuto e tenta de novo. Se continuar não aparecendo, tira o DJ Haules da tomada, espera 10 segundos e liga de volta.
+
+---
+
+### Passo 5 — Pronto!
+
+A partir de agora, basta ligar a caixa de som — a música vai começar sozinha em até 2 minutos.
 
 ---
 
