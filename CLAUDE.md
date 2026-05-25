@@ -153,10 +153,11 @@ A playlist ativa é salva em `config/active_playlist.txt` (não versionado, gera
 Gerenciado pelo serviço `djhaules-wifi.service` que roda `scripts/wifi_monitor.sh` (como root, via NetworkManager).
 
 **Fluxo:**
-1. Aguarda 60s no boot para o NM tentar conectar normalmente
-2. A cada 30s: verifica internet via `nmcli -t -f CONNECTIVITY general status`
-3. Sem internet → ativa hotspot `DJHaules-Hotspot` (SSID: `DJHaules-Config`, senha: `djhaules`, IP: `192.168.4.1`)
+1. Aguarda 10 min (`BOOT_WAIT=600`) no boot para o NM tentar conectar normalmente. Janela longa tolera cenários de blackout onde roteador/repetidor levam minutos pra subir depois do Pi.
+2. A cada 30s (`CHECK_INTERVAL`): verifica internet via `nmcli -t -f CONNECTIVITY general status`
+3. Sem internet **e sem hotspot** → `try_reconnect_client` tenta subir cada perfil Wi-Fi cliente salvo (lista perfis com `nmcli con show` filtrando por tipo `802-11-wireless` exceto o hotspot); só ativa o hotspot `DJHaules-Hotspot` (SSID: `DJHaules-Config`, senha: `djhaules`, IP: `192.168.4.1`) se nenhum conectar
 4. Com internet → desativa hotspot se estava ativo
+5. **Escape do hotspot:** após 5 min (`HOTSPOT_ESCAPE_INTERVAL=300`) em modo AP, derruba o hotspot e tenta reconectar nos perfis cliente; se falhar, sobe o hotspot de novo e reinicia o contador. Evita ficar preso no AP quando a rede do bar só voltou minutos depois.
 
 **Captive portal:** `scripts/captive-portal-dns.conf` configura o dnsmasq do NetworkManager para redirecionar todo DNS para o Pi enquanto o hotspot está ativo. Combinado com as rotas de captive portal do Flask, o celular abre a página de configuração automaticamente ao conectar.
 

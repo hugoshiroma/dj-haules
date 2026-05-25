@@ -16,11 +16,19 @@ HOTSPOT_SSID="DJHaules-Config"
 HOTSPOT_PASS="djhaules"
 HOTSPOT_IP="192.168.4.1/24"
 
-# Tempo de espera no boot para o NetworkManager tentar conectar normalmente
-BOOT_WAIT=60
+# Tempo de espera no boot para o NetworkManager tentar conectar normalmente.
+# Mantido alto (10 min) para tolerar cenários de blackout no bar, em que o
+# Pi religa junto com roteador/repetidor e o ecossistema Wi-Fi leva minutos
+# pra estabilizar. Durante essa janela o NM tenta autoconnect sozinho.
+BOOT_WAIT=600
 
 # Intervalo entre verificações após o boot
 CHECK_INTERVAL=30
+
+# Tempo em modo hotspot antes de tentar voltar para o Wi-Fi cliente.
+# Evita a armadilha de ficar preso no AP quando a rede do bar só voltou
+# alguns minutos depois do hotspot ter sido ativado.
+HOTSPOT_ESCAPE_INTERVAL=300
 
 log() {
     echo "[$(date '+%H:%M:%S')] [wifi-monitor] $1"
@@ -89,10 +97,46 @@ deactivate_hotspot() {
     if ! hotspot_active; then
         return 0
     fi
-    log "Internet restaurada! Desativando hotspot..."
+    log "Desativando hotspot..."
     disable_captive_portal
     nmcli con down "$HOTSPOT_CON" &>/dev/null
-    log "Hotspot desativado. Sistema operando normalmente."
+}
+
+# Lista perfis Wi-Fi cliente salvos (exclui o próprio hotspot)
+list_client_profiles() {
+    nmcli -t -f NAME,TYPE con show 2>/dev/null \
+        | awk -F: '$2 == "802-11-wireless" {print $1}' \
+        | grep -v "^${HOTSPOT_CON}$" || true
+}
+
+# Tenta subir cada perfil Wi-Fi cliente salvo até um conectar com internet.
+# Retorna 0 se conectou com internet, 1 caso contrário.
+try_reconnect_client() {
+    local profiles
+    profiles=$(list_client_profiles)
+
+    if [ -z "$profiles" ]; then
+        log "Nenhum perfil Wi-Fi cliente salvo."
+        return 1
+    fi
+
+    while IFS= read -r profile; do
+        [ -z "$profile" ] && continue
+        log "Tentando conectar em '${profile}'..."
+        if nmcli con up "$profile" &>/dev/null; then
+            # NM precisa de alguns segundos pro connectivity check
+            sleep 5
+            if has_internet; then
+                log "Conectado em '${profile}' com internet."
+                return 0
+            fi
+            log "Conexão com '${profile}' subiu mas sem internet."
+        else
+            log "Falha ao conectar em '${profile}'."
+        fi
+    done <<< "$profiles"
+
+    return 1
 }
 
 # -----------------------------------------------------------------------------
@@ -102,11 +146,35 @@ deactivate_hotspot() {
 log "Serviço iniciado. Aguardando ${BOOT_WAIT}s para conexão Wi-Fi inicial..."
 sleep "$BOOT_WAIT"
 
+hotspot_uptime=0
+
 while true; do
     if has_internet; then
-        deactivate_hotspot
+        if hotspot_active; then
+            log "Internet restaurada!"
+            deactivate_hotspot
+        fi
+        hotspot_uptime=0
+    elif hotspot_active; then
+        hotspot_uptime=$((hotspot_uptime + CHECK_INTERVAL))
+        if [ "$hotspot_uptime" -ge "$HOTSPOT_ESCAPE_INTERVAL" ]; then
+            log "Em hotspot há ${hotspot_uptime}s. Tentando reconectar no Wi-Fi salvo..."
+            deactivate_hotspot
+            if try_reconnect_client; then
+                log "Saiu do hotspot."
+                hotspot_uptime=0
+            else
+                log "Reconexão falhou. Voltando pro hotspot."
+                activate_hotspot
+                hotspot_uptime=0
+            fi
+        fi
     else
-        activate_hotspot
+        # Sem internet e sem hotspot: tenta cliente antes de subir o AP
+        if ! try_reconnect_client; then
+            activate_hotspot
+            hotspot_uptime=0
+        fi
     fi
     sleep "$CHECK_INTERVAL"
 done
