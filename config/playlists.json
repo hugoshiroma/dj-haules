@@ -19,5 +19,19 @@
     "emoji": "🥁",
     "uri": "spotify:playlist:0ekY3YVbazqb5WyTYUNqOh",
     "descricao": "Samba pra animar"
+  },
+  {
+    "id": "reggae",
+    "name": "Reggae",
+    "emoji": "🌴",
+    "uri": "spotify:playlist:40IUFv6hHYeyj9TtPKonZe",
+    "descricao": "Vibes pra relaxar"
+  },
+  {
+    "id": "dub",
+    "name": "Dub",
+    "emoji": "🎚️",
+    "uri": "spotify:playlist:0M88OMUKiBLRVCyAz2pSt5",
+    "descricao": "Dub raiz pra chapar a cuca"
   }
 ]
