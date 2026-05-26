@@ -195,11 +195,14 @@ config/
   play_event.txt                 # Timestamp do último play confirmado (runtime, não versionado)
 
 scripts/
+  setup.sh                       # Setup/reconcile idempotente — rodado no install e em todo boot
   setup_iptables.sh              # Redireciona porta 80 → 8080 (roda no ExecStartPre do djhaules.service)
   wifi_monitor.sh                # Monitor Wi-Fi: detecta sem internet e ativa hotspot
-  djhaules-wifi.service          # Serviço systemd para wifi_monitor.sh (roda como root)
   auto_update.sh                 # git pull no boot antes de iniciar o djhaules.service
-  djhaules-update.service        # Serviço systemd para auto_update.sh (Before=djhaules.service)
+  djhaules.service               # Serviço systemd principal — loop + webapp Flask
+  djhaules-wifi.service          # Serviço systemd para wifi_monitor.sh (roda como root)
+  djhaules-update.service        # Serviço systemd para auto_update.sh (Before=djhaules-reconcile)
+  djhaules-reconcile.service     # Serviço systemd que roda setup.sh no boot (Before=djhaules*)
   captive-portal-dns.conf        # Config dnsmasq para captive portal no hotspot
 
 docs/
@@ -250,19 +253,25 @@ Define as playlists disponíveis na interface. Versionado no repositório — ed
 
 ## 12. Serviços systemd em Produção
 
-São **três serviços** no Pi:
+São **quatro serviços de sistema** + um de usuário no Pi. Todos versionados em `scripts/` e instalados/atualizados pelo `scripts/setup.sh`:
 
 | Serviço | Arquivo | Descrição |
 |---|---|---|
-| `djhaules.service` | (criado manualmente no setup) | Serviço principal — roda `main.py` (loop + webapp Flask) |
+| `djhaules.service` | `scripts/djhaules.service` | Serviço principal — roda `main.py` (loop + webapp Flask) |
 | `djhaules-wifi.service` | `scripts/djhaules-wifi.service` | Monitor Wi-Fi + hotspot de recuperação (roda como root) |
-| `djhaules-update.service` | `scripts/djhaules-update.service` | `git pull` automático no boot, antes do djhaules.service |
+| `djhaules-update.service` | `scripts/djhaules-update.service` | `git pull` no boot, antes dos serviços principais |
+| `djhaules-reconcile.service` | `scripts/djhaules-reconcile.service` | Roda `setup.sh` no boot após o update — aplica idempotentemente configs/services novos sem precisar SSH no Pi |
 | `raspotify.service` | `~/.config/systemd/user/raspotify.service` | Raspotify como serviço de usuário (via PipeWire) |
+
+**Ordem no boot:** `update → reconcile → djhaules + djhaules-wifi`. Isso garante que mudanças puxadas pelo `git pull` (incluindo nos próprios service files) entram em vigor antes dos serviços principais subirem.
+
+**`scripts/setup.sh`:** script idempotente que detecta o usuário-alvo (substitui placeholder `seu_usuario`), copia service files / `captive-portal-dns.conf` se mudaram, atualiza venv se `requirements.txt` mudou, garante grupo bluetooth + linger + rfkill, e reinicia apenas as units alteradas. Rodado uma vez no setup inicial (`sudo ./scripts/setup.sh`) e automaticamente em todo boot via `djhaules-reconcile.service`.
 
 ```bash
 sudo systemctl status djhaules.service
 sudo systemctl status djhaules-wifi.service
 sudo systemctl status djhaules-update.service
+sudo systemctl status djhaules-reconcile.service
 systemctl --user status raspotify
 ```
 

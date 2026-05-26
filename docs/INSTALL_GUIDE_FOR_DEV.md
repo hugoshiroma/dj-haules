@@ -207,73 +207,39 @@ Deve aparecer `active (running)` e nos logs: `Using AlsaSink` e `Published zeroc
 
 ---
 
-## 7. Instalando o Serviço Principal (DJ Haules)
+## 7. Instalando todos os serviços (setup.sh)
+
+A partir daqui um único comando faz **todo** o resto: instala os 4 serviços systemd (`djhaules`, `djhaules-wifi`, `djhaules-update`, `djhaules-reconcile`), configura o captive portal DNS, ajusta permissões, grupos e linger:
 
 ```bash
-# Tornar o script de iptables executável
-chmod +x /home/$USER/dj-haules/scripts/setup_iptables.sh
-
-sudo bash -c "cat > /etc/systemd/system/djhaules.service << EOF
-[Unit]
-Description=DJ Haules Service
-After=network.target sound.target bluetooth.target
-
-[Service]
-User=$USER
-Group=$USER
-WorkingDirectory=/home/$USER/dj-haules
-ExecStartPre=/usr/sbin/rfkill unblock bluetooth
-ExecStartPre=+/home/$USER/dj-haules/scripts/setup_iptables.sh
-ExecStart=/home/$USER/dj-haules/.venv/bin/python /home/$USER/dj-haules/main.py
-Restart=always
-RestartSec=10
-Environment=PYTHONUNBUFFERED=1
-
-[Install]
-WantedBy=multi-user.target
-EOF"
-
-sudo systemctl daemon-reload
-sudo systemctl enable djhaules.service
-sudo systemctl start djhaules.service
-sudo systemctl status djhaules.service
+cd /home/$USER/dj-haules
+sudo ./scripts/setup.sh
 ```
 
-> O `ExecStartPre` com `rfkill` garante que o Bluetooth nunca fique bloqueado após um reboot.
-> O `ExecStartPre` com `setup_iptables.sh` redireciona porta 80 → 8080, permitindo acessar a interface via `http://dj-haules.local` sem precisar digitar a porta.
+O script é **idempotente** — pode rodar quantas vezes quiser. Detecta automaticamente o usuário-alvo (substitui o placeholder `seu_usuario` nos service files), compara cada arquivo com a versão instalada e só atualiza o que mudou.
 
----
+**Pra sempre:** uma vez instalado, o `djhaules-reconcile.service` roda em todo boot logo após o `djhaules-update.service` (git pull), aplicando quaisquer mudanças que tenham chegado do repositório. Você nunca mais precisa entrar no Pi pra aplicar mudanças manualmente em service files ou configs.
 
-## 8. Configurando a Resiliência Wi-Fi (Hotspot de Recuperação + Captive Portal)
+### O que cada serviço faz
 
-Se a senha do Wi-Fi do bar for alterada, o Pi ativa automaticamente um hotspot para reconfiguração. O captive portal faz o celular **abrir a página de configuração automaticamente** ao conectar no hotspot.
+| Serviço | Função |
+|---|---|
+| `djhaules-update.service` | `git pull origin main` no boot — pega código novo |
+| `djhaules-reconcile.service` | Roda `setup.sh` no boot — aplica configs/services novos |
+| `djhaules.service` | Loop principal Python + webapp Flask |
+| `djhaules-wifi.service` | Monitor Wi-Fi: ativa hotspot de recuperação se cair internet |
+
+### Hotspot de Recuperação
+
+Se a senha do Wi-Fi do bar for alterada, o Pi ativa automaticamente o hotspot **"DJHaules-Config"** (senha: `djhaules`). Ao conectar pelo celular, o captive portal **abre a página de configuração automaticamente**. Caso não abra, acesse `http://192.168.4.1/wifi`.
+
+Pela interface (`http://dj-haules.local/wifi`), use **"Esquecer rede"** pra remover as credenciais salvas e retornar ao hotspot voluntariamente.
 
 > **Requisito:** Raspberry Pi OS **Bookworm** (2023+) com NetworkManager.
 
-```bash
-# Instalar a configuração de DNS para captive portal
-sudo mkdir -p /etc/NetworkManager/dnsmasq-shared.d
-sudo cp /home/$USER/dj-haules/scripts/captive-portal-dns.conf \
-    /etc/NetworkManager/dnsmasq-shared.d/djhaules-captive.conf
-
-# Tornar o script executável
-chmod +x /home/$USER/dj-haules/scripts/wifi_monitor.sh
-
-# Instalar o serviço systemd
-sed -i "s/seu_usuario/$USER/g" /home/$USER/dj-haules/scripts/djhaules-wifi.service
-sudo cp /home/$USER/dj-haules/scripts/djhaules-wifi.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable djhaules-wifi.service
-sudo systemctl start djhaules-wifi.service
-```
-
-Quando o Pi perder a internet, ele cria a rede **"DJHaules-Config"** (senha: `djhaules`). Ao conectar, o celular detecta o captive portal e **abre a página de configuração automaticamente**. Caso não abra, acesse manualmente `http://192.168.4.1/wifi`.
-
-Pela interface (`http://dj-haules.local/wifi`), também é possível usar **"Esquecer rede"** para remover as credenciais salvas e retornar ao modo hotspot voluntariamente — útil para trocar de rede sem esperar a internet cair.
-
 ---
 
-## 9. Pareando a Caixa de Som (via Interface Web)
+## 8. Pareando a Caixa de Som (via Interface Web)
 
 Com todos os serviços rodando:
 
@@ -288,40 +254,30 @@ A caixa é salva como prioridade 1 e o DJ Haules começará a tocar automaticame
 
 ---
 
-## 10. Atualização Automática no Boot
+## 9. Atualização Automática no Boot
 
-O Pi atualiza o código automaticamente ao ligar (inclusive após corte de energia), desde que tenha internet. Basta fazer `git push` do desenvolvimento e religar o Pi para ele pegar as novidades.
+Já configurada pelo `setup.sh` na seção 7. O `djhaules-update.service` roda `git pull origin main --ff-only` antes do `djhaules.service` iniciar, e o `djhaules-reconcile.service` aplica em seguida quaisquer mudanças que tenham chegado em service files, scripts ou configs.
 
-```bash
-# Tornar o script executável
-chmod +x /home/$USER/dj-haules/scripts/auto_update.sh
-
-# Substituir "seu_usuario" pelo seu usuário real no arquivo do serviço
-sed -i "s/seu_usuario/$USER/g" /home/$USER/dj-haules/scripts/djhaules-update.service
-
-# Instalar o serviço
-sudo cp /home/$USER/dj-haules/scripts/djhaules-update.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable djhaules-update.service
-```
-
-O serviço roda `git pull origin main --ff-only` antes do `djhaules.service` iniciar. Se não houver internet, ignora e sobe normalmente. Logs em:
+Workflow do dia a dia: `git push` localmente → religar o Pi (ou `sudo reboot` via SSH) → tudo atualizado automaticamente.
 
 ```bash
+# Ver logs do update e do reconcile
 sudo journalctl -t djhaules-update
+sudo journalctl -u djhaules-reconcile.service
 ```
 
 > O `config/settings.ini` e `config/speakers.json` **não são sobrescritos** pelo `git pull` — suas configurações e caixas salvas ficam preservadas.
 
 ---
 
-## 11. Verificando o Sistema Completo
+## 10. Verificando o Sistema Completo
 
 ```bash
 # Status de todos os serviços
 sudo systemctl status djhaules.service
 sudo systemctl status djhaules-wifi.service
 sudo systemctl status djhaules-update.service
+sudo systemctl status djhaules-reconcile.service
 systemctl --user status raspotify
 
 # Logs em tempo real do DJ Haules
@@ -343,12 +299,14 @@ Shuffle aplicado — música aleatória iniciada.
 
 ---
 
-## 12. Atualizando o Projeto Manualmente
+## 11. Atualizando o Projeto Manualmente
+
+Em geral não é necessário — basta `git push` e religar o Pi. Mas se quiser forçar agora:
 
 ```bash
 cd /home/$USER/dj-haules
-sudo systemctl stop djhaules.service
 git pull
-source .venv/bin/activate && pip install -r requirements.txt
-sudo systemctl start djhaules.service
+sudo ./scripts/setup.sh        # aplica configs novas, reinicia serviços alterados
 ```
+
+O `setup.sh` detecta sozinho o que mudou (service files, captive portal, `requirements.txt`) e reinicia apenas o necessário.

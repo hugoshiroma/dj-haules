@@ -1,0 +1,18 @@
+[Unit]
+Description=DJ Haules Service
+After=network.target sound.target bluetooth.target djhaules-reconcile.service
+Wants=djhaules-reconcile.service
+
+[Service]
+User=seu_usuario
+Group=seu_usuario
+WorkingDirectory=/home/seu_usuario/dj-haules
+ExecStartPre=/usr/sbin/rfkill unblock bluetooth
+ExecStartPre=+/home/seu_usuario/dj-haules/scripts/setup_iptables.sh
+ExecStart=/home/seu_usuario/dj-haules/.venv/bin/python /home/seu_usuario/dj-haules/main.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target

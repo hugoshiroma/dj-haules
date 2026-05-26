@@ -1,0 +1,19 @@
+[Unit]
+Description=DJ Haules — reconcile de configs/serviços no boot
+# Roda depois do git pull, antes dos serviços principais. Idempotente.
+After=djhaules-update.service network-online.target
+Wants=djhaules-update.service network-online.target
+Before=djhaules.service djhaules-wifi.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/home/seu_usuario/dj-haules
+Environment=TARGET_USER=seu_usuario
+ExecStart=/home/seu_usuario/dj-haules/scripts/setup.sh
+# Limite generoso: pode incluir pip install se requirements.txt mudou
+TimeoutStartSec=300
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

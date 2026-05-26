@@ -1,7 +1,7 @@
 [Unit]
 Description=DJ Haules Wi-Fi Monitor
-# Inicia após o NetworkManager estar pronto para receber comandos
-After=NetworkManager.service network.target
+# Inicia após o NetworkManager estar pronto e o reconcile ter aplicado configs novas
+After=NetworkManager.service network.target djhaules-reconcile.service
 Wants=NetworkManager.service
 
 [Service]
