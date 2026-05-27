@@ -113,6 +113,7 @@
       white-space: nowrap;
     }
     .btn-remove:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+    .btn-remove.confirming { color: var(--danger); border-color: var(--danger); }
     .btn-remove:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .empty-state {
@@ -294,11 +295,28 @@
     setInterval(refreshStatuses, 5000);
 
     // --- Remover caixa ---
+    const removeConfirmTimers = {};
     async function removeSpeaker(mac, name) {
       const id = mac.replace(/:/g, '_');
       const btn = document.getElementById('remove-' + id);
       const card = document.getElementById('card-saved-' + id);
       const statusEl = document.getElementById('status-' + id);
+
+      // Double-tap para confirmar — remover é destrutivo (corta a música se for a principal)
+      if (!btn.dataset.confirmed) {
+        btn.dataset.confirmed = '1';
+        btn.textContent = 'Confirmar?';
+        btn.classList.add('confirming');
+        removeConfirmTimers[id] = setTimeout(() => {
+          delete btn.dataset.confirmed;
+          btn.textContent = 'Remover';
+          btn.classList.remove('confirming');
+        }, 4000);
+        return;
+      }
+      clearTimeout(removeConfirmTimers[id]);
+      delete btn.dataset.confirmed;
+      btn.classList.remove('confirming');
 
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner spinner-dark" style="border-top-color:#aaa"></span>';

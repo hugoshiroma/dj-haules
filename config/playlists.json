@@ -1,5 +1,22 @@
 [
   {
+    "id": "automatico",
+    "name": "Automático",
+    "emoji": "🗓️",
+    "uri": null,
+    "auto": true,
+    "schedule": {
+      "monday":    "reggae",
+      "tuesday":   "rap",
+      "wednesday": "brasilidades",
+      "thursday":  "sambinha",
+      "friday":    "dub",
+      "saturday":  "random",
+      "sunday":    "random"
+    },
+    "descricao": "Cada dia da semana, um estilo. Fim de semana é surpresa."
+  },
+  {
     "id": "brasilidades",
     "name": "Brasilidades",
     "emoji": "🇧🇷",

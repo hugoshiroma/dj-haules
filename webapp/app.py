@@ -1,9 +1,11 @@
 import json
+import random
 import re
 import time
 import threading
 import subprocess
 import os
+from datetime import datetime
 from flask import Flask, render_template, redirect, url_for, request, jsonify
 from shared import bt_lock
 
@@ -66,12 +68,45 @@ def captive_portal_redirect():
 
 # --- Rotas principais ---
 
+def compute_playback_status():
+    """Estado consolidado do playback — usado pelo badge real."""
+    state = get_state()
+    if state != 'ENABLED':
+        return {'tag': 'paused', 'emoji': '⏸', 'label': 'Pausado'}
+
+    speakers = load_speakers()
+    if not speakers:
+        return {'tag': 'no-speaker', 'emoji': '🔇', 'label': 'Sem caixinha'}
+
+    any_connected = any(is_bt_connected(s['mac']) for s in speakers)
+    if not any_connected:
+        return {'tag': 'waiting-bt', 'emoji': '📡', 'label': 'Aguardando caixinha'}
+
+    # play_event.txt: gravado quando o Spotify confirma reprodução ativa
+    play_ts = 0
+    try:
+        if os.path.exists(PLAY_EVENT_FILE):
+            with open(PLAY_EVENT_FILE) as f:
+                play_ts = int(f.read().strip())
+    except Exception:
+        pass
+    if play_ts and (time.time() - play_ts) < 60:
+        return {'tag': 'playing', 'emoji': '🎵', 'label': 'Tocando'}
+
+    return {'tag': 'starting', 'emoji': '⏳', 'label': 'Iniciando música'}
+
+
 @app.route('/')
 def index():
     current_state = get_state()
-    status_text = 'ATIVADO' if current_state == 'ENABLED' else 'DESATIVADO'
     action_text = 'Desativar DJ Haules' if current_state == 'ENABLED' else 'Ativar DJ Haules'
-    return render_template('index.html', status=status_text, action_text=action_text)
+    status = compute_playback_status()
+    return render_template('index.html', status=status, action_text=action_text)
+
+
+@app.route('/api/status/playback')
+def api_status_playback():
+    return jsonify({'ok': True, **compute_playback_status()})
 
 @app.route('/toggle')
 def toggle():
@@ -90,9 +125,36 @@ def load_playlists():
 
 def get_active_playlist_id():
     if not os.path.exists(ACTIVE_PLAYLIST_FILE):
-        return 'brasilidades'
+        return 'automatico'
     with open(ACTIVE_PLAYLIST_FILE) as f:
-        return f.read().strip() or 'brasilidades'
+        return f.read().strip() or 'automatico'
+
+
+WEEKDAY_NAMES = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+WEEKDAY_PT    = ['segunda','terça','quarta','quinta','sexta','sábado','domingo']
+
+
+def resolve_auto_today(playlists):
+    """Espelha _resolve_auto_today do main.py para o webapp exibir o estilo do dia.
+
+    Retorna a entrada da playlist que o modo automático escolheu hoje, ou None
+    se não há entrada 'auto' ou o schedule não resolve.
+    """
+    auto = next((p for p in playlists if p.get('auto')), None)
+    if not auto:
+        return None
+    schedule = auto.get('schedule', {})
+    today_name = WEEKDAY_NAMES[datetime.now().weekday()]
+    target_id = schedule.get(today_name)
+
+    if target_id == 'random':
+        candidates = sorted({v for v in schedule.values() if v and v != 'random'})
+        if candidates:
+            day_seed = int(datetime.now().strftime('%Y%m%d'))
+            rng = random.Random(day_seed)
+            target_id = rng.choice(candidates)
+
+    return next((p for p in playlists if p['id'] == target_id), None)
 
 
 # --- Rotas de playlist ---
@@ -101,7 +163,15 @@ def get_active_playlist_id():
 def playlist_page():
     playlists = load_playlists()
     active_id = get_active_playlist_id()
-    return render_template('playlist.html', playlists=playlists, active_id=active_id)
+    auto_today = resolve_auto_today(playlists)
+    today_label = WEEKDAY_PT[datetime.now().weekday()].capitalize()
+    return render_template(
+        'playlist.html',
+        playlists=playlists,
+        active_id=active_id,
+        auto_today=auto_today,
+        today_label=today_label,
+    )
 
 @app.route('/api/playlist/select', methods=['POST'])
 def api_playlist_select():
@@ -114,6 +184,28 @@ def api_playlist_select():
         return jsonify({'ok': False, 'error': 'Playlist não encontrada.'})
     with open(ACTIVE_PLAYLIST_FILE, 'w') as f:
         f.write(playlist_id)
+
+    # Reporta condições que impedem o efeito imediato — o id já está salvo
+    # e vai ser aplicado quando o estado convergir.
+    if get_state() != 'ENABLED':
+        return jsonify({
+            'ok': True,
+            'warning': 'Salvo! Mas o DJ Haules está desativado — ative na tela inicial para começar a tocar.'
+        })
+
+    speakers = load_speakers()
+    if not speakers:
+        return jsonify({
+            'ok': True,
+            'warning': 'Salvo! Mas ainda não tem nenhuma caixinha pareada — só vai tocar depois de adicionar uma em "Caixas de Som".'
+        })
+
+    if not any(is_bt_connected(s['mac']) for s in speakers):
+        return jsonify({
+            'ok': True,
+            'warning': 'Salvo! A música muda assim que a caixinha conectar.'
+        })
+
     return jsonify({'ok': True})
 
 

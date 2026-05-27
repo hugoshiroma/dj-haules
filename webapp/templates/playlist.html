@@ -99,6 +99,17 @@
       white-space: nowrap;
     }
 
+    .auto-today {
+      display: inline-block;
+      margin-top: 0.3rem;
+      font-size: 0.7rem;
+      color: var(--accent);
+      background: #1a1400;
+      border: 1px solid #554400;
+      border-radius: 999px;
+      padding: 0.15rem 0.55rem;
+    }
+
     .spinner {
       display: inline-block;
       width: 14px; height: 14px;
@@ -117,8 +128,9 @@
       border-radius: 8px;
       line-height: 1.5;
     }
-    .result-msg.ok  { background: #0f1f0f; border: 1px solid #2a5a2a; color: #77cc77; }
-    .result-msg.err { background: #1f0f0f; border: 1px solid #5a2a2a; color: #cc7777; }
+    .result-msg.ok   { background: #0f1f0f; border: 1px solid #2a5a2a; color: #77cc77; }
+    .result-msg.warn { background: #2a2000; border: 1px solid #554400; color: #ccaa44; }
+    .result-msg.err  { background: #1f0f0f; border: 1px solid #5a2a2a; color: #cc7777; }
   </style>
 </head>
 <body>
@@ -139,6 +151,9 @@
       <div class="playlist-info">
         <div class="playlist-name">{{ pl.name }}</div>
         <div class="playlist-desc">{{ pl.descricao }}</div>
+        {% if pl.auto and auto_today %}
+          <span class="auto-today">{{ today_label }}: {{ auto_today.emoji }} {{ auto_today.name }}</span>
+        {% endif %}
       </div>
       {% if pl.id == active_id %}
         <span class="playlist-badge" id="badge-{{ pl.id }}">Tocando</span>
@@ -186,8 +201,13 @@
           card.classList.add('active');
           badge.innerHTML = '<span class="playlist-badge">Tocando</span>';
           currentActive = id;
-          document.getElementById('result-msg').innerHTML =
-            '<div class="result-msg ok">✓ Estilo trocado! A música muda em até 30 segundos.</div>';
+          if (data.warning) {
+            document.getElementById('result-msg').innerHTML =
+              `<div class="result-msg warn">⚠️ ${data.warning}</div>`;
+          } else {
+            document.getElementById('result-msg').innerHTML =
+              '<div class="result-msg ok">✓ Estilo trocado! A música muda em até 30 segundos.</div>';
+          }
         } else {
           // Reverte
           if (prevCard) {

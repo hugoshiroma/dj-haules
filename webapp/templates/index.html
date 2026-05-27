@@ -60,11 +60,12 @@
       background: var(--surface);
       border: 1px solid var(--border);
       color: var(--muted);
+      transition: border-color 0.3s, color 0.3s;
     }
-    .status-badge.on {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
+    .status-badge.playing  { border-color: #44aa44; color: #66cc66; }
+    .status-badge.starting { border-color: var(--accent); color: var(--accent); }
+    .status-badge.waiting-bt,
+    .status-badge.no-speaker { border-color: #cc4444; color: #ff7777; }
     .btn-primary {
       display: inline-block;
       font-size: 1rem;
@@ -101,13 +102,26 @@
   <img src="/static/logo.png" class="logo" alt="Haules">
   <h1>DJ Haules</h1>
   <p class="subtitle">DJ automático do bar</p>
-  <span class="status-badge {% if status == 'ATIVADO' %}on{% endif %}">
-    {% if status == 'ATIVADO' %}🎵 Tocando{% else %}⏸ Pausado{% endif %}
+  <span class="status-badge {{ status.tag }}" id="status-badge">
+    {{ status.emoji }} {{ status.label }}
   </span>
   <a href="/toggle" class="btn-primary">{{ action_text }}</a>
   <a href="/playlist" class="btn-ghost">🎵 Estilo Musical</a>
   <a href="/speakers" class="btn-ghost">🔊 Caixas de Som</a>
   <a href="/wifi" class="btn-ghost">📶 Rede Wi-Fi</a>
+  <script>
+    async function refreshStatusBadge() {
+      try {
+        const r = await fetch('/api/status/playback');
+        const d = await r.json();
+        if (!d.ok) return;
+        const el = document.getElementById('status-badge');
+        el.className = 'status-badge ' + d.tag;
+        el.textContent = d.emoji + ' ' + d.label;
+      } catch (_) {}
+    }
+    setInterval(refreshStatusBadge, 5000);
+  </script>
   <script src="/static/banner.js"></script>
 </body>
 </html>

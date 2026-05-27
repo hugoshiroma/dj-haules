@@ -152,9 +152,10 @@
         return;
       }
 
-      // Loading expirado sem play confirmado → some silenciosamente
+      // Loading expirado sem play confirmado → vira erro ao invés de sumir silenciosamente
       if (state === 'loading' && lastBtTs > 0 && (now - lastBtTs) >= 180) {
-        hide();
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+        show('error', '⚠️ Não consegui dar play. Desligue e ligue a caixinha de novo.');
       }
 
     } catch (_) {}

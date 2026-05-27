@@ -8,6 +8,7 @@ import subprocess
 import spotipy
 import requests
 from configparser import ConfigParser
+from datetime import datetime
 from webapp.app import app as flask_app
 from shared import bt_lock
 
@@ -164,19 +165,56 @@ def reset_bluetooth_state(speakers):
 
 # --- Playlist ativa ---
 
+WEEKDAY_NAMES = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday']
+
+
+def _resolve_auto_today(auto_entry, playlists):
+    """Resolve qual playlist o modo 'automático' deve tocar hoje.
+
+    Para dias mapeados a um id específico (segunda → reggae, etc), retorna direto.
+    Para 'random' (fds), usa a data atual como seed — a escolha é determinística
+    no mesmo dia (não fica trocando a cada 15s) mas muda ao virar o dia.
+    """
+    schedule = auto_entry.get('schedule', {})
+    today_name = WEEKDAY_NAMES[datetime.now().weekday()]
+    target_id = schedule.get(today_name)
+
+    if target_id == 'random':
+        candidates = sorted({
+            v for v in schedule.values()
+            if v and v != 'random'
+        })
+        if candidates:
+            day_seed = int(datetime.now().strftime('%Y%m%d'))
+            rng = random.Random(day_seed)
+            target_id = rng.choice(candidates)
+
+    return next((p for p in playlists if p['id'] == target_id), None)
+
+
 def get_active_playlist_uri(config):
-    """Retorna a URI da playlist selecionada no momento."""
-    active_id = 'brasilidades'
+    """Retorna a URI da playlist selecionada no momento.
+
+    Suporta o modo 'automático' (entrada com auto=true): escolhe o estilo
+    do dia conforme o campo 'schedule'.
+    """
+    active_id = 'automatico'
     if os.path.exists(ACTIVE_PLAYLIST_FILE):
         with open(ACTIVE_PLAYLIST_FILE) as f:
-            active_id = f.read().strip() or 'brasilidades'
+            active_id = f.read().strip() or 'automatico'
 
+    playlists = []
     if os.path.exists(PLAYLISTS_FILE):
         with open(PLAYLISTS_FILE) as f:
             playlists = json.load(f)
-        for pl in playlists:
-            if pl['id'] == active_id and pl.get('uri'):
-                return pl['uri']
+
+    target = next((p for p in playlists if p['id'] == active_id), None)
+
+    if target and target.get('auto'):
+        target = _resolve_auto_today(target, playlists)
+
+    if target and target.get('uri'):
+        return target['uri']
 
     return config.get('APP', 'PLAYLIST_URI')
 

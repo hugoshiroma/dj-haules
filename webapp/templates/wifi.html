@@ -431,15 +431,13 @@
 
         if (data.ok) {
           msg.innerHTML = `
-            <div class="msg ok">
-              ✓ Configuração salva! O DJ Haules está tentando se conectar à rede <strong>"${ssid}"</strong>.<br><br>
-              Aguarde até 30 segundos. Se a conexão funcionar, a música volta a tocar automaticamente.
-              Se não funcionar, verifique se o nome e a senha estão corretos e tente novamente.
+            <div class="msg info">
+              <span class="spinner spinner-light"></span>
+              Configuração salva. Testando conexão com <strong>"${ssid}"</strong>... (até 45 segundos)
             </div>`;
-          btn.textContent = 'Salvo!';
-          // Atualiza status após 12s e 28s
-          setTimeout(loadStatus, 12000);
-          setTimeout(loadStatus, 28000);
+          btn.textContent = 'Testando...';
+          // Polling até confirmar internet OU 45s de timeout
+          pollUntilConnected(ssid);
         } else {
           msg.innerHTML = `<div class="msg err">❌ ${data.error}</div>`;
           btn.disabled = false;
@@ -450,6 +448,35 @@
         btn.disabled = false;
         btn.textContent = 'Salvar e Reconectar';
       }
+    }
+
+    async function pollUntilConnected(targetSsid) {
+      const msg = document.getElementById('save-msg');
+      const btn = document.getElementById('save-btn');
+      const deadline = Date.now() + 45000;
+
+      const tick = async () => {
+        try {
+          const r = await fetch('/api/wifi/status');
+          const d = await r.json();
+          if (d.ok && d.internet && d.ssid === targetSsid) {
+            msg.innerHTML = `<div class="msg ok">✓ Conectado em <strong>"${targetSsid}"</strong> com internet! A música volta a tocar em até 30 segundos.</div>`;
+            btn.textContent = 'Conectado!';
+            loadStatus();
+            return;
+          }
+        } catch (_) {}
+
+        if (Date.now() >= deadline) {
+          msg.innerHTML = `<div class="msg err">❌ Não consegui conectar em <strong>"${targetSsid}"</strong> em 45 segundos. Verifique se o nome e a senha estão corretos e tente de novo.</div>`;
+          btn.disabled = false;
+          btn.textContent = 'Salvar e Reconectar';
+          loadStatus();
+          return;
+        }
+        setTimeout(tick, 3000);
+      };
+      setTimeout(tick, 3000);
     }
 
     let forgetTimer = null;

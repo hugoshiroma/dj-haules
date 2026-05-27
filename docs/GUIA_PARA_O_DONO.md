@@ -65,7 +65,7 @@ Agora que o DJ Haules está na internet, vamos conectar a caixa de som.
 
 **3.** Clica em **"Procurar Caixas de Som por Bluetooth"** e aguarda ~15 segundos.
 
-**4.** Apareceu sua caixa na lista? Clica em **"Salvar"** ao lado do nome dela.
+**4.** Apareceu sua caixa na lista? Clica em **"Conectar"** ao lado do nome dela.
 
 **5.** O sistema vai tentar conectar — pode levar até 1 minuto. Aguarda aparecer a mensagem de confirmação.
 
@@ -117,6 +117,31 @@ O DJ Haules tem playlists pré-configuradas. Para trocar o estilo que está toca
 2. Abre o navegador e acessa: **http://dj-haules.local**
 3. Clica em **"🎵 Estilo Musical"**
 4. Escolhe o estilo — a troca começa em até 30 segundos, sem precisar reiniciar nada
+
+---
+
+### 🗓️ Modo Automático — um estilo por dia da semana
+
+O DJ Haules vem com um modo chamado **"Automático"** que troca o estilo musical sozinho, conforme o dia da semana. Não precisa fazer nada — basta deixar essa opção selecionada e cada dia o bar toca uma vibe diferente.
+
+| Dia | Estilo |
+|---|---|
+| **Segunda** | 🌴 Reggae |
+| **Terça** | 🎤 Rap BR |
+| **Quarta** | 🇧🇷 Brasilidades |
+| **Quinta** | 🥁 Sambinha |
+| **Sexta** | 🎚️ Dub |
+| **Sábado e Domingo** | 🎲 Surpresa! Toca um dos cinco estilos, sorteado pela data — o mesmo o dia inteiro, e muda quando vira o próximo dia. |
+
+**Como usar:**
+
+1. Acessa **http://dj-haules.local/playlist**
+2. Toca no card **"🗓️ Automático"** (o primeiro da lista)
+3. Pronto — daqui em diante, o estilo do dia troca sozinho à meia-noite
+
+A página mostra qual é o estilo de hoje logo abaixo do nome ("Quarta: 🇧🇷 Brasilidades", por exemplo) — assim você sabe o que vai tocar antes de selecionar.
+
+**Quer fugir do automático em um dia específico?** Sem problema. Basta entrar em **"🎵 Estilo Musical"** e escolher outro estilo manualmente. Quando quiser voltar ao automático, é só selecionar **"Automático"** de novo.
 
 ---
 
