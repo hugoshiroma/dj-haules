@@ -64,6 +64,46 @@ def is_bluetooth_connected(mac_address):
     except subprocess.CalledProcessError:
         return False
 
+def _rediscover_device(mac_address, timeout=12):
+    """Roda scan curto para o BlueZ redescobrir o device alvo após 'remove'.
+
+    DEVE ser chamado já dentro do bt_lock pelo caller.
+    """
+    print(f"Redescobrindo {mac_address} via scan ({timeout}s)...")
+    try:
+        proc = subprocess.Popen(
+            ['bluetoothctl'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True
+        )
+        proc.stdin.write('scan on\n')
+        proc.stdin.flush()
+        found = False
+        for _ in range(timeout):
+            time.sleep(1)
+            try:
+                check = subprocess.check_output(
+                    ['bluetoothctl', 'devices'], text=True, timeout=3
+                )
+                if mac_address.upper() in check.upper():
+                    found = True
+                    break
+            except Exception:
+                pass
+        proc.stdin.write('scan off\nquit\n')
+        proc.stdin.flush()
+        try:
+            proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+        print(f"Redescoberta: {'OK' if found else 'NÃO encontrado'}")
+        return found
+    except Exception as e:
+        print(f"Erro na redescoberta: {e}")
+        return False
+
+
 def _reprovision_bluetooth(mac_address, force_remove=False):
     """Refaz pair+trust+connect para recuperar transporte de áudio (A2DP).
 
@@ -81,6 +121,9 @@ def _reprovision_bluetooth(mac_address, force_remove=False):
             with bt_lock:
                 subprocess.run(['bluetoothctl', 'remove', mac_address],
                                capture_output=True, timeout=10)
+                time.sleep(2)
+                # Após remove, device some do cache — scan repopula
+                _rediscover_device(mac_address, timeout=12)
             time.sleep(2)
         with bt_lock:
             for cmd in ['pair', 'trust']:

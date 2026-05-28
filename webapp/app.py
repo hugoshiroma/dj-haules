@@ -342,6 +342,51 @@ def _output_indicates_corrupt_pairing(output):
     return any(p in low for p in PAIRING_CORRUPT_PATTERNS)
 
 
+def _rediscover_device(mac, timeout=12):
+    """Roda scan curto pra fazer o BlueZ redescobrir o device alvo.
+
+    Necessário após 'bluetoothctl remove' — o device sai do cache, e tentar
+    'pair MAC' direto falha com 'Device MAC not available'. O scan repopula
+    o cache, permitindo o pair fresco.
+
+    DEVE ser chamado já dentro do bt_lock pelo caller.
+    """
+    print(f"[rediscover {mac}] scan {timeout}s...", flush=True)
+    try:
+        proc = subprocess.Popen(
+            ['bluetoothctl'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True
+        )
+        proc.stdin.write('scan on\n')
+        proc.stdin.flush()
+        # Poll por descoberta a cada 1s — sai assim que aparecer
+        found = False
+        for _ in range(timeout):
+            time.sleep(1)
+            try:
+                check = subprocess.check_output(
+                    ['bluetoothctl', 'devices'], text=True, timeout=3
+                )
+                if mac.upper() in check.upper():
+                    found = True
+                    break
+            except Exception:
+                pass
+        proc.stdin.write('scan off\nquit\n')
+        proc.stdin.flush()
+        try:
+            proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+        print(f"[rediscover {mac}] {'encontrado' if found else 'NÃO encontrado'} após scan", flush=True)
+        return found
+    except Exception as e:
+        print(f"[rediscover {mac}] erro: {e}", flush=True)
+        return False
+
+
 def _do_pair_attempt(mac, attempt_num=None):
     """
     Executa uma tentativa completa de pair+trust+connect.
@@ -416,13 +461,17 @@ def api_pair():
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         # Auto-recovery: pareamento velho recusou conexão na tentativa anterior.
-        # Remove o registro local antes de tentar de novo — força pair fresco,
-        # gerando nova link key compatível.
+        # Remove o registro local + redescobre via scan antes de tentar de novo —
+        # força pair fresco gerando nova link key compatível.
         if should_remove_next:
             print(f"[pair {mac}] limpando pareamento corrompido: bluetoothctl remove", flush=True)
             with bt_lock:
                 subprocess.run(['bluetoothctl', 'remove', mac],
                                capture_output=True, timeout=10)
+                time.sleep(2)
+                # Após remove, o device some do cache do BlueZ — precisa scan
+                # pra redescobrir antes que 'pair' funcione
+                _rediscover_device(mac, timeout=12)
             should_remove_next = False
             time.sleep(2)
 
