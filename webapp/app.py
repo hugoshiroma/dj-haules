@@ -330,19 +330,23 @@ def _do_pair_attempt(mac):
     already_paired = is_already_paired(mac)
     cmds = ['trust', 'connect'] if already_paired else ['pair', 'trust', 'connect']
     connect_output = ''
+    # Timeout por comando — connect é o mais demorado (caixinha pode levar
+    # mais de meio minuto pra negociar A2DP em alguns modelos)
+    cmd_timeout = {'pair': 30, 'trust': 15, 'connect': 60}
     for cmd in cmds:
         try:
             result = subprocess.run(
                 ['bluetoothctl', cmd, mac],
-                capture_output=True, text=True, timeout=25
+                capture_output=True, text=True, timeout=cmd_timeout.get(cmd, 30)
             )
             if cmd == 'connect':
                 connect_output = result.stdout + result.stderr
-            time.sleep(2)
+            time.sleep(4)
         except subprocess.TimeoutExpired:
             return False, False
 
-    time.sleep(3)
+    # Tempo extra pra A2DP estabilizar antes de verificar
+    time.sleep(6)
     if not is_bt_connected(mac):
         return False, False
 
@@ -352,7 +356,7 @@ def _do_pair_attempt(mac):
 
 @app.route('/api/pair', methods=['POST'])
 def api_pair():
-    """Faz pair+trust+connect com até 3 tentativas e verifica se o áudio foi estabelecido."""
+    """Faz pair+trust+connect com várias tentativas e verifica se o áudio foi estabelecido."""
     data = request.get_json()
     mac = (data.get('mac') or '').upper()
     name = data.get('name') or mac
@@ -362,7 +366,7 @@ def api_pair():
 
     connected = False
     has_audio = False
-    MAX_ATTEMPTS = 3
+    MAX_ATTEMPTS = 6
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         with bt_lock:
@@ -376,15 +380,17 @@ def api_pair():
             with bt_lock:
                 subprocess.run(['bluetoothctl', 'disconnect', mac],
                                capture_output=True, timeout=10)
-            time.sleep(3)
+            # Backoff progressivo: 4s, 6s, 8s, 10s, 12s
+            time.sleep(2 + attempt * 2)
 
     if not connected:
         return jsonify({
             'ok': False,
             'error': (
-                'Não foi possível conectar após 3 tentativas. '
-                'Verifique se a caixa está ligada e próxima, '
-                'coloque-a em modo de pareamento (botão Bluetooth) e tente novamente.'
+                f'Não foi possível conectar após {MAX_ATTEMPTS} tentativas. '
+                'Verifique se a caixa está ligada, próxima do Pi, e em modo de pareamento '
+                '(botão Bluetooth piscando). Garanta também que ela não está conectada em outro dispositivo (celular/PC). '
+                'Tente novamente.'
             )
         })
 
