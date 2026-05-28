@@ -322,10 +322,31 @@ def is_already_paired(mac):
         return False
 
 
+# Padrões de erro do bluetoothctl que indicam pareamento velho corrompido —
+# a caixa recusa por incompatibilidade de chave de auth. Solução: 'remove' +
+# pair fresco. Cobre tanto caixas com PIN quanto caixas "abertas" cuja link
+# key ficou inconsistente entre Pi e dispositivo.
+PAIRING_CORRUPT_PATTERNS = (
+    'br-connection-refused',
+    'connection refused',
+    'authentication failed',
+    'authentication canceled',
+    'host is down',
+)
+
+
+def _output_indicates_corrupt_pairing(output):
+    if not output:
+        return False
+    low = output.lower()
+    return any(p in low for p in PAIRING_CORRUPT_PATTERNS)
+
+
 def _do_pair_attempt(mac, attempt_num=None):
     """
     Executa uma tentativa completa de pair+trust+connect.
-    Retorna (conectado: bool, tem_audio: bool).
+    Retorna (conectado: bool, tem_audio: bool, corrupted_pairing: bool).
+    corrupted_pairing=True sinaliza que a próxima tentativa deve fazer 'remove'.
     """
     tag = f"[pair {mac} #{attempt_num}]" if attempt_num else f"[pair {mac}]"
 
@@ -357,18 +378,23 @@ def _do_pair_attempt(mac, attempt_num=None):
         except subprocess.TimeoutExpired:
             elapsed = time.time() - t0
             print(f"{tag} TIMEOUT em '{cmd}' após {elapsed:.1f}s", flush=True)
-            return False, False
+            return False, False, False
 
     # Tempo extra pra A2DP estabilizar antes de verificar
     print(f"{tag} aguardando 6s para A2DP estabilizar...", flush=True)
     time.sleep(6)
     if not is_bt_connected(mac):
-        print(f"{tag} bluetoothctl info NÃO reporta 'Connected: yes' — falha", flush=True)
-        return False, False
+        corrupted = already_paired and _output_indicates_corrupt_pairing(connect_output)
+        if corrupted:
+            print(f"{tag} pareamento velho corrompido detectado (br-connection-refused com already_paired). "
+                  f"Próxima tentativa vai fazer 'remove' antes.", flush=True)
+        else:
+            print(f"{tag} bluetoothctl info NÃO reporta 'Connected: yes' — falha", flush=True)
+        return False, False, corrupted
 
     has_audio = 'Transport' in connect_output
     print(f"{tag} SUCESSO — conectado, has_audio={has_audio}", flush=True)
-    return True, has_audio
+    return True, has_audio, False
 
 
 @app.route('/api/pair', methods=['POST'])
@@ -384,16 +410,31 @@ def api_pair():
     connected = False
     has_audio = False
     MAX_ATTEMPTS = 6
+    should_remove_next = False  # Sinalizado quando detectamos pareamento corrompido
 
     print(f"[pair {mac}] Iniciando pareamento (até {MAX_ATTEMPTS} tentativas) — nome='{name}'", flush=True)
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
+        # Auto-recovery: pareamento velho recusou conexão na tentativa anterior.
+        # Remove o registro local antes de tentar de novo — força pair fresco,
+        # gerando nova link key compatível.
+        if should_remove_next:
+            print(f"[pair {mac}] limpando pareamento corrompido: bluetoothctl remove", flush=True)
+            with bt_lock:
+                subprocess.run(['bluetoothctl', 'remove', mac],
+                               capture_output=True, timeout=10)
+            should_remove_next = False
+            time.sleep(2)
+
         with bt_lock:
-            connected, has_audio = _do_pair_attempt(mac, attempt_num=attempt)
+            connected, has_audio, corrupted = _do_pair_attempt(mac, attempt_num=attempt)
 
         if connected:
             print(f"[pair {mac}] tentativa #{attempt} conectou. has_audio={has_audio}", flush=True)
             break
+
+        if corrupted:
+            should_remove_next = True
 
         if attempt < MAX_ATTEMPTS:
             # Descarta estado ruim antes de tentar de novo

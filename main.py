@@ -64,13 +64,24 @@ def is_bluetooth_connected(mac_address):
     except subprocess.CalledProcessError:
         return False
 
-def _reprovision_bluetooth(mac_address):
-    """Refaz pair+trust+connect para recuperar transporte de áudio (A2DP)."""
+def _reprovision_bluetooth(mac_address, force_remove=False):
+    """Refaz pair+trust+connect para recuperar transporte de áudio (A2DP).
+
+    force_remove=True: apaga o pareamento local antes do pair fresco.
+    Usar quando o BlueZ tem link key inconsistente com a caixa
+    (sintoma: 'br-connection-refused' apesar de already_paired=True).
+    """
     try:
         with bt_lock:
             subprocess.run(['bluetoothctl', 'disconnect', mac_address],
                            capture_output=True, timeout=10)
         time.sleep(2)
+        if force_remove:
+            print(f"Limpando pareamento corrompido de {mac_address}...")
+            with bt_lock:
+                subprocess.run(['bluetoothctl', 'remove', mac_address],
+                               capture_output=True, timeout=10)
+            time.sleep(2)
         with bt_lock:
             for cmd in ['pair', 'trust']:
                 subprocess.run(['bluetoothctl', cmd, mac_address],
@@ -92,6 +103,20 @@ def _reprovision_bluetooth(mac_address):
         print(f"Erro no re-pareamento: {e}")
         return False
 
+def _output_indicates_corrupt_pairing(output):
+    """Detecta padrões de erro que indicam link key inconsistente."""
+    if not output:
+        return False
+    low = output.lower()
+    return any(p in low for p in (
+        'br-connection-refused',
+        'connection refused',
+        'authentication failed',
+        'authentication canceled',
+        'host is down',
+    ))
+
+
 def connect_bluetooth(mac_address):
     """Tenta conectar ao dispositivo Bluetooth. Retorna True somente com A2DP estabelecido."""
     print(f"Tentando conectar ao dispositivo {mac_address}...")
@@ -105,6 +130,12 @@ def connect_bluetooth(mac_address):
         time.sleep(3)
 
         if not is_bluetooth_connected(mac_address):
+            # Pareamento velho corrompido (caixa recusa por incompatibilidade
+            # de link key). Limpa e refaz do zero.
+            if _output_indicates_corrupt_pairing(output):
+                print(f"Conexão recusada (pareamento velho corrompido). Limpando e re-parear {mac_address}...")
+                if _reprovision_bluetooth(mac_address, force_remove=True):
+                    return True
             return False
 
         if 'Transport' in output:
