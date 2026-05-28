@@ -390,9 +390,12 @@ def ensure_spotify_playing(sp, config, force_restart=False):
                 raise
         print("Playlist iniciada. Aplicando shuffle...")
 
+        # Volume do device Spotify Connect (raspotify) — força 100% pra dar
+        # headroom máximo. O controle de volume real é o botão físico da
+        # caixinha Bluetooth (e, se preciso, o slider do Spotify do user).
         try:
             time.sleep(2)
-            sp.volume(50, device_id=target_device_id)
+            sp.volume(100, device_id=target_device_id)
         except Exception as e:
             print(f"Aviso: não foi possível ajustar volume ({e}).")
 
