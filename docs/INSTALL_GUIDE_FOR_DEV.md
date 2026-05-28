@@ -159,51 +159,16 @@ Um link aparecerá no terminal. **Abra o browser no próprio Raspberry Pi** (Chr
 
 Após concluir, pressione `Ctrl+C`.
 
-### 6.3 Desabilitar o serviço de sistema e criar serviço de usuário
+### 6.3 Desabilitar o serviço de sistema
 
-> **Por que serviço de usuário?** O Raspotify precisa acessar o PipeWire para rotear o áudio para o Bluetooth. O PipeWire roda na sessão do usuário — serviços de sistema (root) não conseguem acessá-lo, independente de configuração.
+> **Por quê?** O Raspotify precisa acessar o PipeWire para rotear áudio pro Bluetooth. PipeWire roda na sessão do usuário — serviços de sistema (root) não conseguem acessá-lo. Por isso vamos usar uma versão de usuário, instalada automaticamente pelo `setup.sh` na seção 7.
 
 ```bash
-# Desabilitar o serviço de sistema do Raspotify
 sudo systemctl stop raspotify
 sudo systemctl disable raspotify
-
-# Habilitar linger para que serviços do usuário iniciem no boot
-sudo loginctl enable-linger $USER
-
-# Criar o serviço de usuário
-mkdir -p ~/.config/systemd/user/
-cat > ~/.config/systemd/user/raspotify.service << 'EOF'
-[Unit]
-Description=Raspotify (Spotify Connect Client)
-After=pipewire.service sound.target
-Wants=pipewire.service
-
-[Service]
-ExecStart=/usr/bin/librespot \
-  --name "raspotify (dj-haules)" \
-  --backend alsa \
-  --system-cache /var/lib/raspotify \
-  --quiet
-Restart=always
-RestartSec=10
-StartLimitIntervalSec=120s
-StartLimitBurst=6
-
-[Install]
-WantedBy=default.target
-EOF
-
-# Ativar e iniciar
-systemctl --user daemon-reload
-systemctl --user enable raspotify
-systemctl --user start raspotify
-
-# Verificar
-systemctl --user status raspotify
 ```
 
-Deve aparecer `active (running)` e nos logs: `Using AlsaSink` e `Published zeroconf service` sem erros.
+O service file de usuário (`scripts/raspotify.service`, versionado) já vem com `--initial-volume 50` e `--volume-ctrl linear`, configurando o librespot pra começar em volume médio com escala linear (sem curva log que esconde os primeiros 30dB).
 
 ---
 
@@ -222,12 +187,13 @@ O script é **idempotente** — pode rodar quantas vezes quiser. Detecta automat
 
 ### O que cada serviço faz
 
-| Serviço | Função |
-|---|---|
-| `djhaules-update.service` | `git pull origin main` no boot — pega código novo |
-| `djhaules-reconcile.service` | Roda `setup.sh` no boot — aplica configs/services novos |
-| `djhaules.service` | Loop principal Python + webapp Flask |
-| `djhaules-wifi.service` | Monitor Wi-Fi: ativa hotspot de recuperação se cair internet |
+| Serviço | Tipo | Função |
+|---|---|---|
+| `djhaules-update.service` | system | `git pull origin main` no boot — pega código novo |
+| `djhaules-reconcile.service` | system | Roda `setup.sh` no boot — aplica configs/services novos |
+| `djhaules.service` | system | Loop principal Python + webapp Flask |
+| `djhaules-wifi.service` | system | Monitor Wi-Fi: ativa hotspot de recuperação se cair internet |
+| `raspotify.service` | user | Cliente Spotify Connect (librespot) — instalado em `~/.config/systemd/user/` com `--initial-volume 50 --volume-ctrl linear` |
 
 ### Hotspot de Recuperação
 

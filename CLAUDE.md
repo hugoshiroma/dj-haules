@@ -203,6 +203,7 @@ scripts/
   djhaules-wifi.service          # Serviço systemd para wifi_monitor.sh (roda como root)
   djhaules-update.service        # Serviço systemd para auto_update.sh (Before=djhaules-reconcile)
   djhaules-reconcile.service     # Serviço systemd que roda setup.sh no boot (Before=djhaules*)
+  raspotify.service              # Serviço de USUÁRIO (~/.config/systemd/user/) — librespot
   captive-portal-dns.conf        # Config dnsmasq para captive portal no hotspot
 
 docs/
@@ -261,7 +262,7 @@ São **quatro serviços de sistema** + um de usuário no Pi. Todos versionados e
 | `djhaules-wifi.service` | `scripts/djhaules-wifi.service` | Monitor Wi-Fi + hotspot de recuperação (roda como root) |
 | `djhaules-update.service` | `scripts/djhaules-update.service` | `git pull` no boot, antes dos serviços principais |
 | `djhaules-reconcile.service` | `scripts/djhaules-reconcile.service` | Roda `setup.sh` no boot após o update — aplica idempotentemente configs/services novos sem precisar SSH no Pi |
-| `raspotify.service` | `~/.config/systemd/user/raspotify.service` | Raspotify como serviço de usuário (via PipeWire) |
+| `raspotify.service` | `scripts/raspotify.service` (versionado) → `~/.config/systemd/user/raspotify.service` | Raspotify como serviço de usuário (via PipeWire). Flags: `--initial-volume 50 --volume-ctrl linear` |
 
 **Ordem no boot:** `update → reconcile → djhaules + djhaules-wifi`. Isso garante que mudanças puxadas pelo `git pull` (incluindo nos próprios service files) entram em vigor antes dos serviços principais subirem.
 

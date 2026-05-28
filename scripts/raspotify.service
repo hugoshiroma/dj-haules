@@ -1,0 +1,20 @@
+[Unit]
+Description=Raspotify (Spotify Connect Client)
+After=pipewire.service sound.target
+Wants=pipewire.service
+
+[Service]
+ExecStart=/usr/bin/librespot \
+  --name "raspotify (dj-haules)" \
+  --backend alsa \
+  --system-cache /var/lib/raspotify \
+  --initial-volume 50 \
+  --volume-ctrl linear \
+  --quiet
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=120s
+StartLimitBurst=6
+
+[Install]
+WantedBy=default.target

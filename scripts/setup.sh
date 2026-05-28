@@ -58,6 +58,11 @@ fi
 # Variáveis de estado
 SYSTEMD_RELOAD_NEEDED=0
 CHANGED_UNITS=()
+USER_SYSTEMD_RELOAD_NEEDED=0
+CHANGED_USER_UNITS=()
+
+# UID do user-alvo — usado pra falar com o systemd de usuário
+USER_UID="$(id -u "$USER_NAME")"
 
 # -----------------------------------------------------------------------------
 # Helpers
@@ -103,6 +108,30 @@ install_file() {
     install -m "$mode" "$src" "$dest"
 }
 
+# Roda systemctl --user como o USER_NAME — precisa de XDG_RUNTIME_DIR
+# e DBUS_SESSION_BUS_ADDRESS apontados pra sessão do user (existe porque
+# habilitamos linger acima)
+user_systemctl() {
+    sudo -u "$USER_NAME" \
+        XDG_RUNTIME_DIR="/run/user/$USER_UID" \
+        DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$USER_UID/bus" \
+        systemctl --user "$@"
+}
+
+# Instala uma unit de USUÁRIO (~/.config/systemd/user/) se mudou.
+install_user_unit() {
+    local src="$1"
+    local dest="$2"
+    if [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+        return 0
+    fi
+    log "Instalando/atualizando $(basename "$dest") (user service)"
+    sudo -u "$USER_NAME" mkdir -p "$(dirname "$dest")"
+    install -m 0644 -o "$USER_NAME" -g "$USER_NAME" "$src" "$dest"
+    USER_SYSTEMD_RELOAD_NEEDED=1
+    CHANGED_USER_UNITS+=("$(basename "$dest")")
+}
+
 # -----------------------------------------------------------------------------
 # 1. Permissões executáveis nos scripts
 # -----------------------------------------------------------------------------
@@ -144,6 +173,12 @@ install_unit "$REPO_DIR/scripts/djhaules.service"           "/etc/systemd/system
 install_unit "$REPO_DIR/scripts/djhaules-wifi.service"      "/etc/systemd/system/djhaules-wifi.service"
 install_unit "$REPO_DIR/scripts/djhaules-update.service"    "/etc/systemd/system/djhaules-update.service"
 install_unit "$REPO_DIR/scripts/djhaules-reconcile.service" "/etc/systemd/system/djhaules-reconcile.service"
+
+# -----------------------------------------------------------------------------
+# 5b. Raspotify (USER service — PipeWire vive na sessão do user, não no root)
+# -----------------------------------------------------------------------------
+USER_SYSTEMD_DIR="$HOME_DIR/.config/systemd/user"
+install_user_unit "$REPO_DIR/scripts/raspotify.service" "$USER_SYSTEMD_DIR/raspotify.service"
 
 # -----------------------------------------------------------------------------
 # 6. Venv Python + dependências (reinstala só se requirements.txt mudou)
@@ -205,6 +240,26 @@ for unit in "${CHANGED_UNITS[@]:-}"; do
     if systemctl is-active --quiet "$unit"; then
         log "Reiniciando $unit (config mudou)"
         systemctl restart "$unit" || log "AVISO: restart de $unit falhou"
+    fi
+done
+
+# -----------------------------------------------------------------------------
+# 8. systemctl --user daemon-reload + enable + restart das user units alteradas
+# -----------------------------------------------------------------------------
+if [ "$USER_SYSTEMD_RELOAD_NEEDED" -eq 1 ]; then
+    log "user systemctl daemon-reload ($USER_NAME)"
+    user_systemctl daemon-reload || log "AVISO: user daemon-reload falhou — sessão sem linger?"
+fi
+
+for unit in "${CHANGED_USER_UNITS[@]:-}"; do
+    [ -z "$unit" ] && continue
+    if ! user_systemctl is-enabled --quiet "$unit" 2>/dev/null; then
+        log "Habilitando $unit (user)"
+        user_systemctl enable "$unit" > /dev/null 2>&1 || log "AVISO: enable de $unit (user) falhou"
+    fi
+    if user_systemctl is-active --quiet "$unit" 2>/dev/null; then
+        log "Reiniciando $unit (user, config mudou)"
+        user_systemctl restart "$unit" || log "AVISO: restart de $unit (user) falhou"
     fi
 done
 
