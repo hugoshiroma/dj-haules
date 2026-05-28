@@ -20,35 +20,77 @@
     "id": "brasilidades",
     "name": "Brasilidades",
     "emoji": "🇧🇷",
-    "uri": null,
+    "uri": "spotify:playlist:2p92oK1Bsz8mGjq0DfuV0n",
     "descricao": "A playlist oficial do bar"
   },
   {
     "id": "rap",
     "name": "Rap BR",
     "emoji": "🎤",
-    "uri": "spotify:playlist:37i9dQZF1E4vPz8Vu7jVol",
+    "uri": "spotify:playlist:3QVE4SH10CAKr0Lj8xesT2",
     "descricao": "Os melhores do rap nacional"
   },
   {
     "id": "sambinha",
     "name": "Sambinha",
     "emoji": "🥁",
-    "uri": "spotify:playlist:0ekY3YVbazqb5WyTYUNqOh",
+    "uri": "spotify:playlist:6Zd5WMAFzeAXHsZ4oSA6vY",
     "descricao": "Samba pra animar"
   },
   {
     "id": "reggae",
     "name": "Reggae",
     "emoji": "🌴",
-    "uri": "spotify:playlist:40IUFv6hHYeyj9TtPKonZe",
+    "uri": "spotify:playlist:4uqYmukyefnl1B9V5fVGpa",
     "descricao": "Vibes pra relaxar"
   },
   {
     "id": "dub",
     "name": "Dub",
     "emoji": "🎚️",
-    "uri": "spotify:playlist:0M88OMUKiBLRVCyAz2pSt5",
+    "uri": "spotify:playlist:27O4ZMHpZWCmCKHkzgYC3F",
     "descricao": "Dub raiz pra chapar a cuca"
+  },
+  {
+    "id": "psicodelia",
+    "name": "Psicodelia",
+    "emoji": "🌀",
+    "uri": "spotify:playlist:54SU5VNF3s3MeyqSP5VdN7",
+    "descricao": "Psicodelia brasileira"
+  },
+  {
+    "id": "mpb_alt",
+    "name": "MPB Alt.",
+    "emoji": "🎵",
+    "uri": "spotify:playlist:2VSmsC4oZgV1l4xS3lkm3t",
+    "descricao": "MPB contemporânea"
+  },
+  {
+    "id": "funk",
+    "name": "Funk",
+    "emoji": "🕺",
+    "uri": "spotify:playlist:51vV0xM92k5x8hdxznKEDn",
+    "descricao": "Funk consciente"
+  },
+  {
+    "id": "cumbia",
+    "name": "Cumbia",
+    "emoji": "💃",
+    "uri": "spotify:playlist:3nnUBv7VCh89hlwZlFfDI2",
+    "descricao": "Cumbia pra dançar"
+  },
+  {
+    "id": "jazz_br",
+    "name": "Jazz BR",
+    "emoji": "🎷",
+    "uri": "spotify:playlist:37i9dQZF1DWU5TxeYcalut",
+    "descricao": "Jazz nacional"
+  },
+  {
+    "id": "afrobeat",
+    "name": "Afrobeat",
+    "emoji": "🌍",
+    "uri": "spotify:playlist:37SN8bvRfyrY8cDd2GIluM",
+    "descricao": "Afrobeat brasileiro"
   }
 ]
