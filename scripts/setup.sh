@@ -208,6 +208,35 @@ if [ "$CURRENT_HASH" != "$INSTALLED_HASH" ]; then
 fi
 
 # -----------------------------------------------------------------------------
+# 6b. Código Python (main.py, shared.py, webapp/) — restart se mudou
+# -----------------------------------------------------------------------------
+# Templates HTML e static/* são lidos a cada request pelo Flask, então mudanças
+# entram em vigor sem restart. Já o código Python é carregado em memória no
+# import — precisa restart pro djhaules pegar a versão nova.
+CODE_HASH_FILE="$VENV/.code.sha256"
+CODE_CURRENT_HASH="$(
+    find \
+        "$REPO_DIR/main.py" \
+        "$REPO_DIR/shared.py" \
+        "$REPO_DIR/webapp" \
+        -name '*.py' -type f -print0 2>/dev/null \
+    | sort -z \
+    | xargs -0 sha256sum \
+    | sha256sum \
+    | cut -d' ' -f1
+)"
+CODE_INSTALLED_HASH=""
+[ -f "$CODE_HASH_FILE" ] && CODE_INSTALLED_HASH="$(cat "$CODE_HASH_FILE")"
+
+if [ "$CODE_CURRENT_HASH" != "$CODE_INSTALLED_HASH" ]; then
+    log "Código Python mudou — djhaules.service será reiniciado"
+    echo "$CODE_CURRENT_HASH" | sudo -u "$USER_NAME" tee "$CODE_HASH_FILE" > /dev/null
+    if [[ ! " ${CHANGED_UNITS[*]:-} " =~ " djhaules.service " ]]; then
+        CHANGED_UNITS+=("djhaules.service")
+    fi
+fi
+
+# -----------------------------------------------------------------------------
 # 7. systemctl daemon-reload + enable + restart do que mudou
 # -----------------------------------------------------------------------------
 if [ "$SYSTEMD_RELOAD_NEEDED" -eq 1 ]; then

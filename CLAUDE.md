@@ -266,7 +266,9 @@ São **quatro serviços de sistema** + um de usuário no Pi. Todos versionados e
 
 **Ordem no boot:** `update → reconcile → djhaules + djhaules-wifi`. Isso garante que mudanças puxadas pelo `git pull` (incluindo nos próprios service files) entram em vigor antes dos serviços principais subirem.
 
-**`scripts/setup.sh`:** script idempotente que detecta o usuário-alvo (substitui placeholder `seu_usuario`), copia service files / `captive-portal-dns.conf` se mudaram, atualiza venv se `requirements.txt` mudou, garante grupo bluetooth + linger + rfkill, e reinicia apenas as units alteradas. Rodado uma vez no setup inicial (`sudo ./scripts/setup.sh`) e automaticamente em todo boot via `djhaules-reconcile.service`.
+**`scripts/setup.sh`:** script idempotente que detecta o usuário-alvo (substitui placeholder `seu_usuario`), copia service files / `captive-portal-dns.conf` se mudaram, atualiza venv se `requirements.txt` mudou, **reinicia o `djhaules.service` se qualquer `.py` (main, shared, webapp) mudou** (hash em `.venv/.code.sha256`), garante grupo bluetooth + linger + rfkill, e reinicia apenas as units alteradas. Rodado uma vez no setup inicial (`sudo ./scripts/setup.sh`) e automaticamente em todo boot via `djhaules-reconcile.service`.
+
+**Workflow do dia a dia:** `git push` localmente → religa o Pi → tudo atualizado. O update puxa o código, o reconcile detecta o que mudou (service files, code, deps) e reinicia somente o necessário. Mudanças em templates/JS são picked up automaticamente pelo Flask (sem restart).
 
 ```bash
 sudo systemctl status djhaules.service
