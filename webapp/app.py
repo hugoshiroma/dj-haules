@@ -322,35 +322,52 @@ def is_already_paired(mac):
         return False
 
 
-def _do_pair_attempt(mac):
+def _do_pair_attempt(mac, attempt_num=None):
     """
     Executa uma tentativa completa de pair+trust+connect.
     Retorna (conectado: bool, tem_audio: bool).
     """
+    tag = f"[pair {mac} #{attempt_num}]" if attempt_num else f"[pair {mac}]"
+
     already_paired = is_already_paired(mac)
     cmds = ['trust', 'connect'] if already_paired else ['pair', 'trust', 'connect']
+    print(f"{tag} already_paired={already_paired}, sequência: {' → '.join(cmds)}", flush=True)
     connect_output = ''
     # Timeout por comando — connect é o mais demorado (caixinha pode levar
     # mais de meio minuto pra negociar A2DP em alguns modelos)
     cmd_timeout = {'pair': 60, 'trust': 15, 'connect': 120}
     for cmd in cmds:
+        timeout = cmd_timeout.get(cmd, 30)
+        print(f"{tag} executando '{cmd}' (timeout {timeout}s)...", flush=True)
+        t0 = time.time()
         try:
             result = subprocess.run(
                 ['bluetoothctl', cmd, mac],
-                capture_output=True, text=True, timeout=cmd_timeout.get(cmd, 30)
+                capture_output=True, text=True, timeout=timeout
             )
+            elapsed = time.time() - t0
+            out = (result.stdout or '').strip().replace('\n', ' | ')
+            err = (result.stderr or '').strip().replace('\n', ' | ')
+            print(f"{tag} '{cmd}' levou {elapsed:.1f}s → stdout: {out[:200]}", flush=True)
+            if err:
+                print(f"{tag} '{cmd}' stderr: {err[:200]}", flush=True)
             if cmd == 'connect':
                 connect_output = result.stdout + result.stderr
             time.sleep(4)
         except subprocess.TimeoutExpired:
+            elapsed = time.time() - t0
+            print(f"{tag} TIMEOUT em '{cmd}' após {elapsed:.1f}s", flush=True)
             return False, False
 
     # Tempo extra pra A2DP estabilizar antes de verificar
+    print(f"{tag} aguardando 6s para A2DP estabilizar...", flush=True)
     time.sleep(6)
     if not is_bt_connected(mac):
+        print(f"{tag} bluetoothctl info NÃO reporta 'Connected: yes' — falha", flush=True)
         return False, False
 
     has_audio = 'Transport' in connect_output
+    print(f"{tag} SUCESSO — conectado, has_audio={has_audio}", flush=True)
     return True, has_audio
 
 
@@ -368,20 +385,26 @@ def api_pair():
     has_audio = False
     MAX_ATTEMPTS = 6
 
+    print(f"[pair {mac}] Iniciando pareamento (até {MAX_ATTEMPTS} tentativas) — nome='{name}'", flush=True)
+
     for attempt in range(1, MAX_ATTEMPTS + 1):
         with bt_lock:
-            connected, has_audio = _do_pair_attempt(mac)
+            connected, has_audio = _do_pair_attempt(mac, attempt_num=attempt)
 
         if connected:
+            print(f"[pair {mac}] tentativa #{attempt} conectou. has_audio={has_audio}", flush=True)
             break
 
         if attempt < MAX_ATTEMPTS:
             # Descarta estado ruim antes de tentar de novo
+            backoff = 2 + attempt * 2
+            print(f"[pair {mac}] tentativa #{attempt} falhou. Disconnect + backoff {backoff}s...", flush=True)
             with bt_lock:
                 subprocess.run(['bluetoothctl', 'disconnect', mac],
                                capture_output=True, timeout=10)
-            # Backoff progressivo: 4s, 6s, 8s, 10s, 12s
-            time.sleep(2 + attempt * 2)
+            time.sleep(backoff)
+        else:
+            print(f"[pair {mac}] todas as {MAX_ATTEMPTS} tentativas falharam", flush=True)
 
     if not connected:
         return jsonify({
