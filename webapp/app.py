@@ -332,7 +332,7 @@ def _do_pair_attempt(mac):
     connect_output = ''
     # Timeout por comando — connect é o mais demorado (caixinha pode levar
     # mais de meio minuto pra negociar A2DP em alguns modelos)
-    cmd_timeout = {'pair': 30, 'trust': 15, 'connect': 60}
+    cmd_timeout = {'pair': 60, 'trust': 15, 'connect': 120}
     for cmd in cmds:
         try:
             result = subprocess.run(
