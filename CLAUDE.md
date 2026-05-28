@@ -5,8 +5,8 @@ Este arquivo serve como guia de contexto para o Claude sobre o projeto "DJ-Haule
 ## 1. Resumo do Projeto
 
 - **O que é:** Sistema de automação de playlist de música ambiente para o Bar do Haules. Roda em um **Raspberry Pi**, conecta a uma caixa de som Bluetooth e toca playlists via Spotify/Raspotify.
-- **Objetivo:** Manter a música tocando de forma autônoma, sem intervenção manual. A playlist principal ("Brasilidades") é alimentada pelos clientes via `haules-landing-page`; outras playlists são selecionáveis pela interface.
-- **Integração:** Consome a mesma conta Spotify e playlist comunitária gerenciadas pelas Edge Functions do Supabase usadas pelo `haules-landing-page`.
+- **Objetivo:** Manter a música tocando de forma autônoma, sem intervenção manual. Clientes podem **sugerir músicas via `haules-landing-page`** — essas músicas vão pra **fila de reprodução do player ativo** (não alteram a playlist tocando). Funciona em qualquer playlist que esteja tocando no momento.
+- **Integração:** Consome a mesma conta Spotify gerenciada pelas Edge Functions do Supabase (`haules-gateway`).
 - **Controle:** Interface web em `http://dj-haules.local` para ativar/desativar o sistema, trocar playlist, gerenciar caixas e configurar Wi-Fi.
 
 ## 2. Tecnologias e Arquitetura
@@ -144,7 +144,7 @@ Polling: `GET /api/status/banner` a cada 4s. Sem chamadas ao Spotify.
 
 As playlists disponíveis são definidas em `config/playlists.json` (versionado). Cada entrada tem `id`, `name`, `emoji`, `uri` (Spotify URI ou `null`), e `descricao`.
 
-A playlist com `uri: null` usa o `PLAYLIST_URI` do `settings.ini` como fallback — é o campo para a playlist comunitária principal.
+A playlist com `uri: null` usa o `PLAYLIST_URI` do `settings.ini` como fallback — é o campo pra apontar uma playlist padrão sem precisar versionar a URI.
 
 A playlist ativa é salva em `config/active_playlist.txt` (não versionado, gerado em runtime). Padrão: `brasilidades`.
 
@@ -224,7 +224,7 @@ CLAUDE.md                        # Este arquivo — contexto do projeto para o C
 | `SUPABASE` | `URL` | URL base do projeto Supabase |
 | `SUPABASE` | `ANON_KEY` | Chave anônima pública do Supabase |
 | `APP` | `DEVICE_NAME` | Nome do dispositivo Raspotify no Spotify — deve bater exatamente com `--name` no serviço do Raspotify (ex: `raspotify (dj-haules)`) |
-| `APP` | `PLAYLIST_URI` | URI da playlist comunitária principal (ex: `spotify:playlist:XXXX`) — usada pela playlist com `uri: null` no `playlists.json` |
+| `APP` | `PLAYLIST_URI` | URI fallback (ex: `spotify:playlist:XXXX`) — usada pelas entradas com `uri: null` no `playlists.json` |
 
 ### `config/speakers.json`
 
@@ -250,7 +250,7 @@ Define as playlists disponíveis na interface. Versionado no repositório — ed
 ]
 ```
 
-`uri: null` → usa `PLAYLIST_URI` do `settings.ini` (playlist comunitária).
+`uri: null` → usa `PLAYLIST_URI` do `settings.ini` como fallback.
 
 ## 12. Serviços systemd em Produção
 
@@ -282,6 +282,7 @@ systemctl --user status raspotify
 
 | Projeto | Relação |
 |---|---|
-| `haules-landing-page` | Gerencia a playlist comunitária que o DJ Haules toca. Clientes adicionam músicas via site. O `dj-haules` consome a mesma playlist Spotify. |
-| `service-haules-v2` (Supabase) | Hospeda a tabela `tokens` com o Spotify Access Token e as Edge Functions que renovam o token. |
+| `haules-landing-page` | Site onde clientes do bar sugerem músicas via QR code. **As músicas vão pra fila de reprodução do player ativo** (`POST /me/player/queue` do Spotify Web API), NÃO modificam playlist nenhuma. Funciona em cima de qualquer playlist que o DJ Haules esteja tocando — não tem dependência de URI específica. |
+| `haules-gateway` | Supabase do bar. Hospeda a tabela `tokens` (Spotify Access Token) e as Edge Functions: `add-to-playlist` (adiciona à fila do player), `get-playlist` (lê fila atual), `cron-update-spotify-token` (renova o token periodicamente). É de onde o `dj-haules` puxa o token via REST. |
+| `service-haules-v2` | Backend Medusa.js do bar (e-commerce/POS) — sem relação direta com o fluxo de música. |
 | `haules-pos-app` | Sem relação direta. |
