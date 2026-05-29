@@ -160,6 +160,31 @@ def _output_indicates_corrupt_pairing(output):
     ))
 
 
+# Classificação do erro do connect — usada apenas pro log no loop principal.
+# (O webapp tem sua própria cópia que também propaga a tag pro frontend.)
+_CONNECT_REASONS = (
+    ('BUSY',         ('br-connection-busy', 'br-connection-already-connected'),
+                     'caixinha ocupada com outro dispositivo'),
+    ('UNREACHABLE',  ('page timeout', 'br-connection-page-timeout',
+                      'connection timed out', 'host is down'),
+                     'caixinha não responde (desligada, fora de alcance ou conexão exclusiva)'),
+    ('AUTH_REFUSED', ('br-connection-refused', 'connection refused',
+                      'authentication failed', 'authentication canceled'),
+                     'caixinha recusou autenticação (pareamento velho incompatível)'),
+)
+
+
+def _log_connect_reason(mac, output):
+    """Imprime o motivo do connect falhar, quando dá pra classificar."""
+    if not output:
+        return
+    low = output.lower()
+    for tag, patterns, label in _CONNECT_REASONS:
+        if any(p in low for p in patterns):
+            print(f"Motivo do connect falhar em {mac}: {tag} — {label}")
+            return
+
+
 def connect_bluetooth(mac_address):
     """Tenta conectar ao dispositivo Bluetooth. Retorna True somente com A2DP estabelecido."""
     print(f"Tentando conectar ao dispositivo {mac_address}...")
@@ -173,6 +198,7 @@ def connect_bluetooth(mac_address):
         time.sleep(3)
 
         if not is_bluetooth_connected(mac_address):
+            _log_connect_reason(mac_address, output)
             # Pareamento velho corrompido (caixa recusa por incompatibilidade
             # de link key). Limpa e refaz do zero.
             if _output_indicates_corrupt_pairing(output):

@@ -342,6 +342,46 @@ def _output_indicates_corrupt_pairing(output):
     return any(p in low for p in PAIRING_CORRUPT_PATTERNS)
 
 
+# Classificação do erro do connect — informa qual problema real ocorreu
+# (caixa ocupada, fora de alcance, auth recusada). Usado tanto pro log
+# quanto pra mensagem de erro acionável no frontend.
+CONNECT_ERROR_CLASSIFIERS = (
+    ('BUSY', (
+        'br-connection-busy',
+        'br-connection-already-connected',
+    )),
+    ('UNREACHABLE', (
+        'page timeout',
+        'br-connection-page-timeout',
+        'connection timed out',
+        'host is down',
+    )),
+    ('AUTH_REFUSED', (
+        'br-connection-refused',
+        'connection refused',
+        'authentication failed',
+        'authentication canceled',
+    )),
+)
+
+CONNECT_ERROR_LABELS = {
+    'BUSY':         'caixinha já tem outro dispositivo conectado',
+    'UNREACHABLE':  'caixinha não responde (desligada, fora de alcance ou em outra conexão exclusiva)',
+    'AUTH_REFUSED': 'caixinha recusou autenticação (pareamento velho incompatível)',
+}
+
+
+def _classify_connect_error(output):
+    """Devolve uma tag (BUSY/UNREACHABLE/AUTH_REFUSED) ou None se o erro não bateu nos padrões conhecidos."""
+    if not output:
+        return None
+    low = output.lower()
+    for tag, patterns in CONNECT_ERROR_CLASSIFIERS:
+        if any(p in low for p in patterns):
+            return tag
+    return None
+
+
 def _rediscover_device(mac, timeout=12):
     """Roda scan curto pra fazer o BlueZ redescobrir o device alvo.
 
@@ -390,8 +430,10 @@ def _rediscover_device(mac, timeout=12):
 def _do_pair_attempt(mac, attempt_num=None):
     """
     Executa uma tentativa completa de pair+trust+connect.
-    Retorna (conectado: bool, tem_audio: bool, corrupted_pairing: bool).
-    corrupted_pairing=True sinaliza que a próxima tentativa deve fazer 'remove'.
+    Retorna (conectado: bool, tem_audio: bool, corrupted_pairing: bool, reason: str|None).
+    - corrupted_pairing=True sinaliza que a próxima tentativa deve fazer 'remove'.
+    - reason é a classificação do erro do connect (BUSY/UNREACHABLE/AUTH_REFUSED)
+      ou None se não foi possível classificar (ou se a conexão deu certo).
     """
     tag = f"[pair {mac} #{attempt_num}]" if attempt_num else f"[pair {mac}]"
 
@@ -423,23 +465,26 @@ def _do_pair_attempt(mac, attempt_num=None):
         except subprocess.TimeoutExpired:
             elapsed = time.time() - t0
             print(f"{tag} TIMEOUT em '{cmd}' após {elapsed:.1f}s", flush=True)
-            return False, False, False
+            return False, False, False, 'UNREACHABLE'
 
     # Tempo extra pra A2DP estabilizar antes de verificar
     print(f"{tag} aguardando 6s para A2DP estabilizar...", flush=True)
     time.sleep(6)
     if not is_bt_connected(mac):
+        reason = _classify_connect_error(connect_output)
+        if reason:
+            print(f"{tag} motivo identificado: {reason} — {CONNECT_ERROR_LABELS[reason]}", flush=True)
         corrupted = already_paired and _output_indicates_corrupt_pairing(connect_output)
         if corrupted:
             print(f"{tag} pareamento velho corrompido detectado (br-connection-refused com already_paired). "
                   f"Próxima tentativa vai fazer 'remove' antes.", flush=True)
-        else:
-            print(f"{tag} bluetoothctl info NÃO reporta 'Connected: yes' — falha", flush=True)
-        return False, False, corrupted
+        elif not reason:
+            print(f"{tag} bluetoothctl info NÃO reporta 'Connected: yes' — motivo não classificado", flush=True)
+        return False, False, corrupted, reason
 
     has_audio = 'Transport' in connect_output
     print(f"{tag} SUCESSO — conectado, has_audio={has_audio}", flush=True)
-    return True, has_audio, False
+    return True, has_audio, False, None
 
 
 @app.route('/api/pair', methods=['POST'])
@@ -456,6 +501,7 @@ def api_pair():
     has_audio = False
     MAX_ATTEMPTS = 6
     should_remove_next = False  # Sinalizado quando detectamos pareamento corrompido
+    last_reason = None  # Última classificação não-vazia ao longo das tentativas
 
     print(f"[pair {mac}] Iniciando pareamento (até {MAX_ATTEMPTS} tentativas) — nome='{name}'", flush=True)
 
@@ -476,12 +522,14 @@ def api_pair():
             time.sleep(2)
 
         with bt_lock:
-            connected, has_audio, corrupted = _do_pair_attempt(mac, attempt_num=attempt)
+            connected, has_audio, corrupted, reason = _do_pair_attempt(mac, attempt_num=attempt)
 
         if connected:
             print(f"[pair {mac}] tentativa #{attempt} conectou. has_audio={has_audio}", flush=True)
             break
 
+        if reason:
+            last_reason = reason
         if corrupted:
             should_remove_next = True
 
@@ -494,18 +542,30 @@ def api_pair():
                                capture_output=True, timeout=10)
             time.sleep(backoff)
         else:
-            print(f"[pair {mac}] todas as {MAX_ATTEMPTS} tentativas falharam", flush=True)
+            print(f"[pair {mac}] todas as {MAX_ATTEMPTS} tentativas falharam (último motivo: {last_reason or 'não classificado'})", flush=True)
 
     if not connected:
-        return jsonify({
-            'ok': False,
-            'error': (
-                f'Não foi possível conectar após {MAX_ATTEMPTS} tentativas. '
-                'Verifique se a caixa está ligada, próxima do Pi, e em modo de pareamento '
-                '(botão Bluetooth piscando). Garanta também que ela não está conectada em outro dispositivo (celular/PC). '
-                'Tente novamente.'
-            )
-        })
+        # Mensagem específica conforme a última causa identificada
+        reason_msgs = {
+            'BUSY': (
+                'A caixinha está conectada em outro celular ou computador. '
+                'Desconecta ela dos outros aparelhos e tenta de novo aqui.'
+            ),
+            'UNREACHABLE': (
+                'A caixinha não respondeu. Verifica se ela está ligada e perto do DJ Haules. '
+                'Se estiver, desliga e liga ela de novo e tenta mais uma vez.'
+            ),
+            'AUTH_REFUSED': (
+                'Tentei limpar o pareamento antigo e reconectar, mas não rolou. '
+                'Tenta resetar a caixinha (botão de reset/fábrica) e parear de novo.'
+            ),
+        }
+        msg = reason_msgs.get(last_reason, (
+            f'Não foi possível conectar após {MAX_ATTEMPTS} tentativas. '
+            'Verifica se a caixa está ligada, próxima do Pi, em modo de pareamento e '
+            'não conectada em outro dispositivo. Tenta novamente.'
+        ))
+        return jsonify({'ok': False, 'error': msg, 'reason': last_reason})
 
     # Salva como prioridade 1 (principal), incrementa as demais
     speakers = [s for s in load_speakers() if s['mac'].upper() != mac]
