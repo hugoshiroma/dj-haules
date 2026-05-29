@@ -251,7 +251,12 @@ for unit in djhaules-update.service djhaules-reconcile.service djhaules-wifi.ser
     fi
 done
 
-# Restart das units alteradas — pula a si mesmo e units oneshot
+# Restart das units alteradas — pula a si mesmo e units oneshot.
+# IMPORTANTE: usa --no-block porque algumas units (djhaules.service) têm
+# Wants=djhaules-reconcile.service. Como este script roda DENTRO do reconcile,
+# um restart bloqueante criaria deadlock: systemd espera reconcile=active
+# pra subir djhaules, reconcile espera setup.sh terminar, setup.sh espera
+# restart de djhaules. --no-block enfileira o restart e segue.
 SELF_UNIT="djhaules-reconcile.service"
 for unit in "${CHANGED_UNITS[@]:-}"; do
     [ -z "$unit" ] && continue
@@ -267,8 +272,8 @@ for unit in "${CHANGED_UNITS[@]:-}"; do
     # Só reinicia se já estava ativo — se ainda não iniciou (caso do boot),
     # systemd vai subir com a unit nova naturalmente
     if systemctl is-active --quiet "$unit"; then
-        log "Reiniciando $unit (config mudou)"
-        systemctl restart "$unit" || log "AVISO: restart de $unit falhou"
+        log "Agendando restart de $unit (config mudou, --no-block)"
+        systemctl restart --no-block "$unit" || log "AVISO: enqueue de restart de $unit falhou"
     fi
 done
 
@@ -287,8 +292,8 @@ for unit in "${CHANGED_USER_UNITS[@]:-}"; do
         user_systemctl enable "$unit" > /dev/null 2>&1 || log "AVISO: enable de $unit (user) falhou"
     fi
     if user_systemctl is-active --quiet "$unit" 2>/dev/null; then
-        log "Reiniciando $unit (user, config mudou)"
-        user_systemctl restart "$unit" || log "AVISO: restart de $unit (user) falhou"
+        log "Agendando restart de $unit (user, config mudou, --no-block)"
+        user_systemctl restart --no-block "$unit" || log "AVISO: enqueue de restart de $unit (user) falhou"
     fi
 done
 
