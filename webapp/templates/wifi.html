@@ -243,9 +243,10 @@
   <p class="section-title">Conexão Atual</p>
   <div class="status-card" id="status-card">
     <div class="status-icon" id="status-icon">⏳</div>
-    <div>
+    <div style="flex:1; min-width:0;">
       <div class="status-label">Internet</div>
       <div class="status-value" id="status-value">Verificando...</div>
+      <div class="status-signal" id="status-signal" style="display:none; font-size:0.75rem; color:var(--muted); margin-top:0.3rem; display:flex; align-items:center; gap:0.4rem;"></div>
     </div>
   </div>
 
@@ -301,14 +302,17 @@
         const res = await fetch('/api/wifi/status');
         const data = await res.json();
 
-        const icon    = document.getElementById('status-icon');
-        const value   = document.getElementById('status-value');
-        const card    = document.getElementById('status-card');
-        const notice  = document.getElementById('hotspot-notice');
-        const savedBox = document.getElementById('saved-network-box');
-        const savedName = document.getElementById('saved-network-name');
+        const icon       = document.getElementById('status-icon');
+        const value      = document.getElementById('status-value');
+        const signalEl   = document.getElementById('status-signal');
+        const card       = document.getElementById('status-card');
+        const notice     = document.getElementById('hotspot-notice');
+        const savedBox   = document.getElementById('saved-network-box');
+        const savedName  = document.getElementById('saved-network-name');
 
         card.className = 'status-card';
+        signalEl.style.display = 'none';
+        signalEl.innerHTML = '';
 
         if (!data.ok) {
           icon.textContent = '❓';
@@ -317,6 +321,14 @@
           return;
         }
 
+        // Renderiza ícone + label da força do sinal, se conhecido
+        const renderSignal = () => {
+          if (typeof data.signal === 'number') {
+            signalEl.innerHTML = `${signalIcon(data.signal)}<span>${signalLabel(data.signal)} · ${data.signal}%</span>`;
+            signalEl.style.display = 'flex';
+          }
+        };
+
         if (data.internet && data.ssid) {
           icon.textContent = '✅';
           value.textContent = `Conectado: ${data.ssid}`;
@@ -324,6 +336,7 @@
           card.classList.add('connected');
           savedBox.style.display = 'block';
           savedName.textContent = data.ssid;
+          renderSignal();
         } else if (data.hotspot) {
           icon.textContent = '📡';
           value.textContent = 'Sem internet — modo de recuperação ativo';
@@ -339,6 +352,7 @@
           if (data.ssid) {
             savedBox.style.display = 'block';
             savedName.textContent = data.ssid;
+            renderSignal();
           }
         }
       } catch (e) {
@@ -536,6 +550,8 @@
     }
 
     loadStatus();
+    // Auto-dispara o scan ao entrar na tela — economiza um toque do user
+    scanNetworks();
   </script>
   <script src="/static/banner.js"></script>
 

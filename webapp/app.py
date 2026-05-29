@@ -732,21 +732,27 @@ def api_wifi_status():
             if line
         )
 
-        # Obtém o SSID real da interface Wi-Fi (somente em modo estação)
+        # Obtém o SSID + força do sinal da interface Wi-Fi (somente em modo estação)
         ssid = None
+        signal = None
         if not hotspot:
             try:
+                # Pedimos SIGNAL ANTES de SSID pra que o split com maxsplit=2
+                # preserve qualquer ':' contido no SSID
                 wifi_out = subprocess.check_output(
-                    ['nmcli', '-t', '-f', 'ACTIVE,SSID', 'dev', 'wifi'],
+                    ['nmcli', '-t', '-f', 'ACTIVE,SIGNAL,SSID', 'dev', 'wifi'],
                     text=True, timeout=5
                 )
                 for wline in wifi_out.strip().split('\n'):
-                    # split com maxsplit=1 preserva SSIDs que contenham ':'
-                    wparts = wline.split(':', 1)
-                    if len(wparts) == 2 and wparts[0] == 'yes':
-                        candidate = wparts[1].strip()
+                    wparts = wline.split(':', 2)
+                    if len(wparts) == 3 and wparts[0] == 'yes':
+                        candidate = wparts[2].strip()
                         if candidate:
                             ssid = candidate
+                            try:
+                                signal = int(wparts[1].strip())
+                            except ValueError:
+                                signal = None
                             break
             except Exception:
                 pass
@@ -757,9 +763,9 @@ def api_wifi_status():
         )
         internet = 'full' in connectivity
 
-        return jsonify({'ok': True, 'ssid': ssid, 'hotspot': hotspot, 'internet': internet})
+        return jsonify({'ok': True, 'ssid': ssid, 'signal': signal, 'hotspot': hotspot, 'internet': internet})
     except Exception as e:
-        return jsonify({'ok': False, 'error': str(e), 'ssid': None, 'hotspot': False, 'internet': False})
+        return jsonify({'ok': False, 'error': str(e), 'ssid': None, 'signal': None, 'hotspot': False, 'internet': False})
 
 
 @app.route('/api/wifi/save', methods=['POST'])
